@@ -1,0 +1,208 @@
+Lambda表达式：表示匿名函数或者闭包
+
+JavaScript是一种非常典型的函数式语言
+
+Lambda表达式的基本结构：
+(param1, param2, param3) -> {
+	// some code
+}
+
+<? super Integer>中的?表示Integer及其父类类型，<? extends Object>中的?表示Object及其子类类型。
+
+list.forEach(new Consumer<Integer>() {
+            @Override
+            public void accept(Integer integer) {
+                System.out.println(integer);
+            }
+        });
+
+jdk1.8加入了java.util.function包：
+
+@FunctionalInterface
+public interface Consumer<T> {
+    void accept(T t);
+
+    default Consumer<T> andThen(Consumer<? super T> after) {
+        Objects.requireNonNull(after);
+        return (T t) -> { accept(t); after.accept(t); };
+    }
+}
+
+@FunctionalInterface：函数式接口注解，一个函数式接口只有一个精确的抽象方法，除此之外，它还可以包含1个或多个默认方法。函数式接口的实例可以通过lambda表达式，方法引用或者构造器引用的方式创建。
+
+forEach方法是jdk8加入到public interface Iterable<T>接口中的默认方法：
+default void forEach(Consumer<? super T> action) {
+        Objects.requireNonNull(action);
+        for (T t : this) {
+            action.accept(t);
+        }
+    }
+
+让指定的list执行给定的动作，也就是将行为作为参数传递给了方法。
+
+public interface Consumer<T>接口：它代表了一个操作（这里就是定义的void accept(T t)方法），并且这个操作接收一个参数但不返回结果。它产生一个副作用：可能修改接收参数的值。
+
+list.forEach(integer -> {
+            System.out.println(integer);
+        });
+通过函数式接口的匿名内部类实现的操作，都可以使用lambda表达式实现。这里的integer是一个参数，它的类型是Integer，这个类型的确定是通过类型推导完成的。当然，也可以手动指定的Integer类型。
+list.forEach((Integer integer) -> {
+            System.out.println(integer);
+        });
+通过方法引用的方式实现函数式操作：
+list.forEach(System.out::println);
+
+流操作：
+list.stream().map(item -> item.toUpperCase()).forEach(System.out::println);
+stream是Collection接口中的默认方法：
+default Stream<E> stream() {
+	return StreamSupport.stream(spliterator(), false);
+}
+
+map是Stream中的抽象方法：
+<R> Stream<R> map(Function<? super T, ? extends R> mapper);
+这个方法接收一个Function函数接口类型的操作，该操作（R apply(T t)）接收一个参数并返回一个结果。map方法表示将流中的元素的值映射到另一个值并将这个值返回置于原来的流中。
+
+list.stream().map(String::toUpperCase).forEach(System.out::println);
+使用方法引用的方式实现与lambda表达式相同的操作。
+
+Function<String, String> function = String::toUpperCase;
+第一种方法引用方式：对于function中的R apply(T t)方法，第一个参数是调用toUpperCase的对象，返回值是toUpperCase的返回值，只有这种情况才可以使用<类型::实例方法>的方法引用形式。
+
+Collections.sort(names, new Comparator<String>() {
+            @Override
+            public int compare(String o1, String o2) {
+                return o2.compareTo(o1);
+            }
+        });
+@FunctionalInterface
+public interface Comparator<T>：Comparator在jdk1.8中成为了函数式接口。它的唯一抽象方法int compare(T o1, T o2)接收两个参数并返回一个整型值。所以，按照lambda表达式的特点，可以改写成：
+Collections.sort(names, (o1, o2) -> {
+            return o1.compareTo(o2);
+        });
+
+也可以写成下面更简洁的格式：
+Collections.sort(names, (o1, o2) -> o1.compareTo(o2));
+
+也可以写成另外的格式：
+Collections.sort(names, Comparator.reverseOrder());
+ public static <T extends Comparable<? super T>> Comparator<T> reverseOrder() {
+        return Collections.reverseOrder();
+    }
+reverseOrder方法是Comparator接口中的静态方法，它是通过Collections中的reverseOrder方法实现的顺序翻转。
+
+Function例子：
+public int compute(int a, Function<Integer, Integer> function) {
+        return function.apply(a);
+    }
+该方法是将一个整型变量a应用到function操作中，这个function操作具体行为并不知道。
+compute(1, value -> value + 5);
+该操作就是将整型值1应用到value -> value + 5这个function操作中作为value的值。
+
+default <V> Function<V, R> compose(Function<? super V, ? extends T> before) {
+        Objects.requireNonNull(before);
+        return (V v) -> apply(before.apply(v));
+    }
+Function接口中的默认方法compose，组合不同的Function，并依次应用到参数上。应用的顺序是：参数函数before先应用，然后将其返回结果再应用到当前函数。
+
+ default <V> Function<T, V> andThen(Function<? super R, ? extends V> after) {
+        Objects.requireNonNull(after);
+        return (T t) -> after.apply(apply(t));
+    }
+Function接口中的默认方法andThen，在当前函数后追加函数应用。应用的顺序是：当前函数县应用，然后将其返回结果再应用到参数函数after。
+
+public int compute(int a, Function<Integer, Integer> function1, Function<Integer, Integer> function2) {
+        return function1.compose(function2).apply(a);
+    }
+先将整型变量a应用到function2，返回的结果再应用到function1。
+
+public int compute2(int a, Function<Integer, Integer> function1, Function<Integer, Integer> function2) {
+        return function1.andThen(function2).apply(a);
+    }
+先将整型变量a应用到function1，返回的结果再应用到function2。
+
+compute(2, value -> value * 3, value -> value * value);// 12
+compute2(2, value -> value * 3, value -> value * value);// 36
+
+@FunctionalInterface
+public interface BiFunction<T, U, R>：函数式接口，方法R apply(T t, U u)接收两个参数并返回一个结果。
+default <V> BiFunction<T, U, V> andThen(Function<? super R, ? extends V> after) {
+        Objects.requireNonNull(after);
+        return (T t, U u) -> after.apply(apply(t, u));
+    }
+BiFunction接口中的默认方法andThen，先将参数引用到当前函数，再将返回的结果引用到参数函数after。
+
+public int compute4(int a, int b, BiFunction<Integer, Integer, Integer> biFunction,
+                        Function<Integer, Integer> function) {
+        return biFunction.andThen(function).apply(a, b);
+    }
+先将整型变量a和b应用到biFunction函数，再将返回的结果应用到function函数。
+compute4(1, 2, (v1, v2) -> v1 + v2, v3 -> v3 * v3)；// 9
+
+Stream<T> filter(Predicate<? super T> predicate);
+stream接口中的抽象方法：接受一个Predicate参数，filter会根据Predicate参数对stream进行过滤，并返回一个新的流对象。
+
+@FunctionalInterface
+public interface Predicate<T> ：函数式接口，抽象方法boolean test(T t);接收一个参数并返回一个布尔值。
+
+ default Predicate<T> and(Predicate<? super T> other) {
+        Objects.requireNonNull(other);
+        return (t) -> test(t) && other.test(t);
+    }
+Predicate接口中的默认方法：首先将参数t应用到当前函数，再将参数t应用到参数函数other，并将两次返回的布尔值进行逻辑与运算。
+
+default Predicate<T> negate() {
+        return (t) -> !test(t);
+    }
+Predicate接口中的默认方法：将参数t应用到当前函数，并对返回结果取反。
+
+default Predicate<T> or(Predicate<? super T> other) {
+        Objects.requireNonNull(other);
+        return (t) -> test(t) || other.test(t);
+    }
+Predicate接口中的默认方法：将参数t应用到当前函数，再将参数t应用到参数函数other，并将两次返回的布尔值进行逻辑或运算。
+
+static <T> Predicate<T> isEqual(Object targetRef) {
+        return (null == targetRef)
+                ? Objects::isNull
+                : object -> targetRef.equals(object);
+    }
+Predicate接口中的静态方法：将应用在test方法上的参数与isEqual的参数targetRef进行equals比较。
+System.out.println(Predicate.isEqual("test").test("test"));// true
+
+public static List<Person> getPersonByUsername(String username, List<Person> persons) {
+        return persons.stream().filter(person -> username.equals(person.getUsername()))
+                .collect(Collectors.toList());
+    }
+Stream接口中的抽象方法collect：接收一个Collector<? super T, A, R> collector函数参数，并返回R。
+
+@FunctionalInterface
+public interface Supplier<T>：函数式接口，抽象方法get不接收参数，但返回一个结果。
+
+构造方法引用：
+Supplier<Student> studentSupplier2 = Student::new;
+
+@FunctionalInterface
+public interface BinaryOperator<T> extends BiFunction<T,T,T>：函数式接口，BiFunction接口的一种特例，在apply方法上两个应用的参数与返回的结果是同一类型。
+
+public static <T> BinaryOperator<T> minBy(Comparator<? super T> comparator) {
+        Objects.requireNonNull(comparator);
+        return (a, b) -> comparator.compare(a, b) <= 0 ? a : b;
+    }
+BinaryOperator接口的静态方法：将参数比较器应用到两个相同类型的变量a和b上，返回其中较小的值。
+
+public static String getMin(String a, String b, Comparator<String> comparator) {
+        return BinaryOperator.minBy(comparator).apply(a, b);
+    }
+将参数比较器应用到两个相同类型的变量a和b上，返回其中较小的值。
+
+
+
+
+
+
+
+
+
+
+

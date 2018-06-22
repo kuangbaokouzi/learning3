@@ -1,0 +1,24 @@
+EntityManager
+
+与持久化上下文交互的接口。
+
+有个EntityManager实例与一个持久化上下文关联。一个持久化上下文一个实体实例的集合。对于集合中的任何一个持久化实体，都有一个唯一的实体实例。实体实例的生命周期在这个持久化上下文中被管理。EntityManager API被用于创建或者删除持久化实体实例、通过实体的主键查找它们以及查询其它实体。
+
+实体的集合可以被给定的EntityManager实例管理，这个实例通过一个持久化单元被定义。一个持久化单元定义所有类的集合，这些类被应用关联或组织，并且共同映射到单个数据库。
+
+public void persist(Object entity);让一个实例受管并且持久化。如果这个参数实体已经存在，在持久化操作时EntityExistsException可能会被抛出。它或者另外一个异常PersistenceException，可能在刷新或者提交的时候抛出。
+
+public <T> T merge(T entity);合并给定实体的状态进入当前持久化上下文中。
+
+public void remove(Object entity);移除实体实例。
+
+public <T> T find(Class<T> entityClass, Object primaryKey);通过主键查找。搜索一个指定类的实体和主键。如果实体实例在持久化上下文中，返回它。
+
+public <T> T find(Class<T> entityClass, Object primaryKey, 
+                  Map<String, Object> properties); 使用指定的属性并通过主键查找。如果特定的属性或暗号不被认可，它会静静地被忽略。
+
+public Query createQuery(String qlString);创建一个Query实例来执行一个Java持久化查询语句。
+
+public Query createQuery(CriteriaUpdate updateQuery);创建一个Query实例来执行一个规范的更新语句。
+
+public Query createQuery(CriteriaDelete deleteQuery);创建一个Query实例来执行一个规范的删除语句。

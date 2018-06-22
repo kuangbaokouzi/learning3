@@ -1,0 +1,11 @@
+StreamSupport
+
+提供创建或操作流的底层方法。这个类几乎只用于底层库的编写者来呈现流的数据结构。为最终用户设计的流方法位于各种各样的Stream类中。
+
+public static <T> Stream<T> stream(Spliterator<T> spliterator, boolean parallel) {
+        Objects.requireNonNull(spliterator);
+        return new ReferencePipeline.Head<>(spliterator,
+                                            StreamOpFlag.fromCharacteristics(spliterator),
+                                            parallel);
+    }
+从Spliterator中创建一个新的串行或并行的流，取决于parallel参数。在终止的流管道操作后，分割迭代器仅用于遍历、分割或者查询。强烈建议分割迭代器报告一个IMMUTABLE、CONCURRENT或者延迟绑定的特性值。

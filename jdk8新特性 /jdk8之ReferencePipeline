@@ -1,0 +1,240 @@
+引用管道ReferencePipeline
+
+抽象的基类，针对中间管道阶段或者管道源阶段的实现。封装流的源和流的中间操作。
+
+static class Head<E_IN, E_OUT> extends ReferencePipeline<E_IN, E_OUT>
+表示流的源阶段。
+
+ReferencePipeline和Head的大部分属性设定上是类似的，但存在一些属性不同，比如说Head是没有previousStage的，而ReferencePipeline是存在previousStage的。
+
+E_IN：上游源元素的类型
+E_OUT：当前阶段生成的源的元素类型
+
+Head(Supplier<? extends Spliterator<?>> source,
+             int sourceFlags, boolean parallel) {
+            super(source, sourceFlags, parallel);
+        }
+调用ReferencePipeline构造方法。
+ReferencePipeline(Supplier<? extends Spliterator<?>> source,
+                      int sourceFlags, boolean parallel) {
+        super(source, sourceFlags, parallel);
+    }
+流源阶段构造方法。调用AbstractPipeline构造方法。
+AbstractPipeline(Supplier<? extends Spliterator<?>> source,
+                     int sourceFlags, boolean parallel) {
+        this.previousStage = null;// 上游管道，如果当前管道是源阶段，此属性为null
+        this.sourceSupplier = source;// 源分割迭代器，只对头管道有效。在管道被消费之前，如果是非空的，sourceSupplierSpliterator必须为null；在管道被消费之后，如果非空，就置为null。
+        this.sourceStage = this;// 源阶段，如果当前就是源阶段，赋值为当前管道
+        this.sourceOrOpFlags = sourceFlags & StreamOpFlag.STREAM_MASK;
+        // The following is an optimization of:
+        // StreamOpFlag.combineOpFlags(sourceOrOpFlags, StreamOpFlag.INITIAL_OPS_VALUE);
+        this.combinedFlags = (~(sourceOrOpFlags << 1)) & StreamOpFlag.INITIAL_OPS_VALUE;
+        this.depth = 0;// 如果是串行流，表示当前管道和源之间中间操作的个数；如果是并行流，表示当前管道和上游管道之间中间操作的个数。在流管道准备计算的时候，该属性合法有效。
+        this.parallel = parallel;// 流源阶段有效，指定是否并行
+    }
+AbstractPipeline，管道抽象的基类，是Stream接口和它的原生特化的核心实现。管理流管道的构建和计算。
+
+AbstractPipeline代表了流管道初始部分，封装了一个流的源、0个或多个中间操作。单个的AbstractPipeline对象通常被称为阶段。每个阶段要么描述流的源，要么描述流的中间操作。
+
+一个具体的中间阶段，通常是通过AbstractPipeline构建的。特化的管道继承AbstractPipeline，比如IntPipeline也是抽象的、特定于操作的具体类。
+
+当链接一个新的中间操作后，或执行了一个终止操作，流就被消费，不允许更多的中间或终止操作被用到这个流的实例上。
+
+对于串行流和中间操作都是无状态的并行流，管道操作会在一次完成，这个过程会将所有的操作结合在一起（每个元素在一趟操作中会经历所有的流操作，直到流短路发生或者终止操作发生）。对于中间操作有状态的并行流，一趟执行会被分为多段，每个有状态的操作都会标识没一个段的结尾，每个段都会被单独进行计算，每个段的结果都用于下个段的输入。源数据只有在终止操作开始的时候才会被消费。
+
+
+void forEach(Consumer<? super T> action);
+对流中的每个元素执行一个动作。这个操作的行为是不确定的。对于并行流管道来说，这个操作并不会遵循遇到元素的顺序。如果遵循，会牺牲掉并行的优势（其实就变成串行了）。如果这个操作返回了共享的状态，则需要提供同步机制。
+
+@Override
+    public void forEach(Consumer<? super P_OUT> action) {
+        evaluate(ForEachOps.makeRef(action, false));
+    }
+ReferencePipeline中的forEach实现。
+
+@Override
+public void forEach(Consumer<? super E_OUT> action) {
+    /*如果当前是串行操作*/
+    if (!isParallel()) {
+        /*执行源阶段分割迭代器的forEachRemaining方法*/
+        sourceStageSpliterator().forEachRemaining(action);
+    }
+    /*否则，调用ReferencePipeline中的forEach方法，回到常规调用*/
+    else {
+        super.forEach(action);
+    }
+}
+Head中的forEach实现。它是对管道头优化的串行终止操作。
+
+final Spliterator<E_OUT> sourceStageSpliterator() {
+    /*如果当前不是源阶段，抛出异常*/
+    if (this != sourceStage)
+        throw new IllegalStateException();
+
+    /*如果被链接或者被消费，抛出异常*/
+    if (linkedOrConsumed)
+        throw new IllegalStateException(MSG_STREAM_LINKED);
+    linkedOrConsumed = true;// 当前被链接或被消费，该状态设置为true
+
+    /*如果源阶段的分割迭代器不为null*/
+    if (sourceStage.sourceSpliterator != null) {
+        @SuppressWarnings("unchecked")
+        Spliterator<E_OUT> s = sourceStage.sourceSpliterator;
+        sourceStage.sourceSpliterator = null;
+        return s;
+    }
+    /*如果源阶段的源提供器不为null*/
+    else if (sourceStage.sourceSupplier != null) {
+        @SuppressWarnings("unchecked")
+        Spliterator<E_OUT> s = (Spliterator<E_OUT>) sourceStage.sourceSupplier.get();
+        sourceStage.sourceSupplier = null;
+        return s;
+    }
+    /*否则，意味这流已被消费，抛出异常*/
+    else {
+        throw new IllegalStateException(MSG_CONSUMED);
+    }
+}
+如果管道是源阶段，就获取源阶段分割迭代器。这个管道在方法被调用并成功返回之后就会被消费。
+
+@Override
+public void forEachRemaining(Consumer<? super T> action) {
+    if (action == null) throw new NullPointerException();
+    Iterator<? extends T> i;
+    if ((i = it) == null) {
+        i = it = collection.iterator();// 返回当前源集合的迭代器
+        est = (long)collection.size();
+    }
+    i.forEachRemaining(action);// 调用forEachRemaining方法，并传入当前集合的迭代器
+}
+IteratorSpliterator中的forEachRemaining方法。
+
+default void forEachRemaining(Consumer<? super E> action) {
+        Objects.requireNonNull(action);
+        while (hasNext())// 如果还有下一个元素
+            action.accept(next());// 对每个元素都应用到action的消费动作
+    }
+
+在最简单的集合遍历场合，流操作的效率要远低于常规的迭代操作。除此之外，更推荐使用流操作。
+
+@Override
+@SuppressWarnings("unchecked")
+public final <R> Stream<R> map(Function<? super P_OUT, ? extends R> mapper) {
+    Objects.requireNonNull(mapper);
+    return new StatelessOp<P_OUT, R>(this, StreamShape.REFERENCE,
+                                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT) {
+        @Override
+        Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
+            return new Sink.ChainedReference<P_OUT, R>(sink) {
+                @Override
+                public void accept(P_OUT u) {
+                    downstream.accept(mapper.apply(u));
+                }
+            };
+        }
+    };
+}
+map在ReferencePipeline中唯一实现。
+
+abstract static class StatelessOp<E_IN, E_OUT> extends ReferencePipeline<E_IN, E_OUT>
+StatelessOp表示流的中间无状态阶段的基类。
+
+StatelessOp(AbstractPipeline<?, E_IN, ?> upstream,
+                    StreamShape inputShape,
+                    int opFlags) {
+            super(upstream, opFlags);// 完成流操作的串联
+            assert upstream.getOutputShape() == inputShape;
+        }
+
+AbstractPipeline(AbstractPipeline<?, E_IN, ?> previousStage, int opFlags) {
+        if (previousStage.linkedOrConsumed)
+            throw new IllegalStateException(MSG_STREAM_LINKED);
+        previousStage.linkedOrConsumed = true;// 上游被消费
+        previousStage.nextStage = this;// 当前作为上游的下一个阶段
+
+        this.previousStage = previousStage;// 当前阶段的上游阶段就是previousStage
+        this.sourceOrOpFlags = opFlags & StreamOpFlag.OP_MASK;
+        this.combinedFlags = StreamOpFlag.combineOpFlags(opFlags, previousStage.combinedFlags);
+        this.sourceStage = previousStage.sourceStage;// 上游的源阶段作为当前的源阶段
+        if (opIsStateful())
+            sourceStage.sourceAnyStateful = true;
+        this.depth = previousStage.depth + 1;
+    }
+
+interface Sink<T> extends Consumer<T> 
+Sink是对Consumer的扩展。在调用accept方法之前要去调用begin方法，在调用accept方法之后要去调用end方法。一个Sink可以处于两种状态：初始化状态和激活状态。begin方法让Sink转变为激活状态，end方法让Sink转变为初始状态。这样Sink就可以重用。accept方法旨在激活状态下有效。
+
+一个Sink实例用于表示管道中的每个阶段，无论这个阶段接收的是对象还是原生类型。
+
+static abstract class ChainedReference<T, E_OUT> implements Sink<T> {
+    protected final Sink<? super E_OUT> downstream;
+
+    public ChainedReference(Sink<? super E_OUT> downstream) {
+        this.downstream = Objects.requireNonNull(downstream);
+    }
+
+    @Override
+    public void begin(long size) {
+        downstream.begin(size);
+    }
+
+    @Override
+    public void end() {
+        downstream.end();
+    }
+
+    @Override
+    public boolean cancellationRequested() {
+        return downstream.cancellationRequested();
+    }
+}
+针对创建sink链的抽象Sink实现。begin、end和cancellationRequested方法被链接到下游的Sink。这个实现会接收下游的Sink。
+
+abstract Sink<E_IN> opWrapSink(int flags, Sink<E_OUT> sink);
+接收一个Sink<E_OUT>，它接收操作的结果。返回一个Sink<E_IN>，它接收操作的输入类型的元素，它还执行操作并将结果传递给Sink<E_OUT>；
+
+@Override
+public void forEach(Consumer<? super P_OUT> action) {
+    evaluate(ForEachOps.makeRef(action, false));
+}
+
+final class ForEachOps
+用于创建TerminalOp实例的工厂，终止操作会对流中的每个元素执行一个动作。支持无序遍历和有序遍历。
+
+public static <T> TerminalOp<T, Void> makeRef(Consumer<? super T> action,
+                                                  boolean ordered) {
+        Objects.requireNonNull(action);
+        return new ForEachOp.OfRef<>(action, ordered);
+    }
+
+interface TerminalOp<E_IN, R>
+它表示一个流管道的操作，它将一个流作为输入并产生一个结果或这副作用（对元素进行了修改）。每个终止操作会拥有一个输入类型和流的类型，以及一个结果类型。
+
+static final class OfRef<T> extends ForEachOp<T> {
+    final Consumer<? super T> consumer;
+
+    OfRef(Consumer<? super T> consumer, boolean ordered) {
+        super(ordered);
+        this.consumer = consumer;
+    }
+
+    @Override
+    public void accept(T t) {
+        consumer.accept(t);
+    }
+}
+对引用流的实现。
+
+static abstract class ForEachOp<T> implements TerminalOp<T, Void>, TerminalSink<T, Void>
+它会计算一个流管道并且将输出发送到它自己作为TerminalSink。
+
+final <R> R evaluate(TerminalOp<E_OUT, R> terminalOp) {
+    assert getOutputShape() == terminalOp.inputShape();
+    if (linkedOrConsumed)
+        throw new IllegalStateException(MSG_STREAM_LINKED);
+    linkedOrConsumed = true;
+
+    return isParallel()
+            ? terminalOp.evaluateParallel(this, sourceSpliterator(terminalOp.getOpFlags()))
+            : terminalOp.evaluateSequential(this, sourceSpliterator(terminalOp.getOpFlags()));
+}

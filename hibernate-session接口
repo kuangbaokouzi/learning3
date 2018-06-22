@@ -1,0 +1,56 @@
+Session
+
+Session是处于Java应用和Hibernate框架之间的主要运行期接口。它是抽象持久化服务的核心API。
+
+Session的生命周期是以逻辑事务开始和结束作为边界的。长事务可能会跨越多个数据库事务。
+
+Session主要的功能是为映射的实体类的实例提供创建、读取以及删除操作。这些实例存在于下列三种状态之一：
+-transient，临时状态，从未持久化，与任何一个Session都没关联。
+-persistent，持久状态，与一个Session关联。
+-detached，游离状态，早先关联过一个Session，但当前不再与Seesion关联。
+
+临时状态实例可以转变为持久状态，通过调用save、persist或者saveOrUpdate方法。持久化实例可以转变成临时状态，通过调用delete方法。通过get或load方法返回的实例是持久化实例。游离态实例可以转变为持久状态，通过调用update、saveOrUpdate、lock或者replicate方法。临时实例或者游离实例也可以被转变为持久状态，通过调用merge方法。
+
+save和persist方法执行INSERT语句。delete方法执行DELETE语句。update和merge方法执行UPDATE语句。在flush时改变一个持久化实例到游离状态也执行UPDATE语句。saveOrUpdate和replicate方法执行INSERT语句或者UPDATE语句。
+
+Session不是线程安全的。每个线程/事务应该从SessionFactory中获得它自己的实例。
+
+一个Session实例是可序列化的，如果它的持久化类是可序列化的。
+
+一个典型的事务应该使用下面的习惯用法：
+ *Session sess = factory.openSession();
+ * Transaction tx;
+ * try {
+ *     tx = sess.beginTransaction();
+ *     //do some work
+ *     ...
+ *     tx.commit();
+ * }
+ * catch (Exception e) {
+ *     if (tx!=null) tx.rollback();
+ *     throw e;
+ * }
+ * finally {
+ *     sess.close();
+ * }
+
+如果Session抛出一个异常，它的事务必须被回滚并且会话被丢弃。在异常发生后，Session的内部状态可能与数据库不一致。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

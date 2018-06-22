@@ -1,0 +1,25 @@
+#服务启动后端口查询
+sudo netstat -anp | grep mysql
+复制代码
+#服务管理
+#启动
+sudo service mysql start
+#停止
+sudo service mysql stop
+#服务状态
+sudo service mysql status
+复制代码
+#连接数据库
+mysql -h 127.0.0.1 -P 3306 -uroot -proot
+#-h为远程IP，-P为端口号，-u为用户名，-p为密码
+#测试SQL
+show databases;
+
+#首先使用以下命令删除MySQL服务器：
+sudo apt-get remove mysql-server
+#然后，删除随MySQL服务器自动安装的任何其他软件：
+sudo apt-get autoremove
+#卸载其他组件：
+sudo apt-get remove <<package-name>>
+#查看从MySQL APT存储库安装的软件包列表：
+dpkg -l | grep mysql | grep ii

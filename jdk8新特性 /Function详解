@@ -1,0 +1,24 @@
+Function默认方法详解
+
+default <V> Function<V, R> compose(Function<? super V, ? extends T> before) {
+        Objects.requireNonNull(before);
+        return (V v) -> apply(before.apply(v));
+}
+
+Function接口可以进行组合，compose方法就是将当前Function和之前的Function进行组合；实现了多个Function之间的串联调用。compose方法会先执行before应用的apply方法，然后将结果作为当前引用apply的参数，执行当前引用的apply方法。
+
+
+default <V> Function<T, V> andThen(Function<? super R, ? extends V> after) {
+        Objects.requireNonNull(after);
+        return (T t) -> after.apply(apply(t));
+}
+
+addThen方法跟compose方法执行顺序相反，它先执行当前引用的apply方法，然后将结果作为after的apply方法的参数，执行after引用的apply方法。
+
+public int compute(int a, Function<Integer, Integer> function1, Function<Integer, Integer> function2) {
+        return function1.compose(function2).apply(a);
+}
+
+public int compute2(int a, Function<Integer, Integer> function1, Function<Integer, Integer> function2) {
+	return function1.andThen(function2).apply(a);
+}

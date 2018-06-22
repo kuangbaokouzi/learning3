@@ -1,0 +1,12 @@
+2.1 What is Spring Security?
+
+Spring Security为基于j2ee的企业级软件应用提供全方位的安全服务。这在支持使用Spring Framework构建项目上显得尤为重要。Spring Framework是企业级软件开发优先的j2ee解决方案。如果你还没有使用Spring开发企业级应用，我们温馨提示你关注它。一些大家熟悉的Spring技术-特别是以来注入原则，会帮助你更轻松地实现Spring Security。
+
+人们因为很多因素考虑使用Spring Security，但大多数被吸引并用到项目中是在发现J2EE的servlet规范或EJB的安全特性对典型的企业级应用场景缺乏所需的深度之后。在提到这些标准的同时，重要的是要认识到它们在WAR或EAR级别不可移植。因此，如果你转换了服务器环境，在新的目标环境中重新配置你的应用的安全组件将是非常多的工作。使用Spring Security克服这些问题，并带给你很多其它有用的可定制的安全特性。
+
+你可能知道应用安全的两大主要方面是“认证”和“授权”（或访问控制）。它们就是Spring security目标的两个主要方面。 “认证”是建立委托人的过程（委托人通常只一个用户或在你的应用中执行动作的设备或其它系统）。“授权”指的是决定一个委托人是否被允许在你的应用中执行动作的过程。为了抵达需要授权决定的端点，委托人的身份在“认证”过程中已经被创建。这些概念很常见，而不是Spring Security所特有的。
+
+
+6.Security Namespace Configuration
+6.1简介
+命名空间配置直到Spring Framework2.0版本才出现。它允许你为传统的Spring beans应用上下文语法提供额外的XML元素。你可以在Spring Reference Documentation中找到更多的信息。. 一个命名空间元素可以用来简化单个bean配置方式。

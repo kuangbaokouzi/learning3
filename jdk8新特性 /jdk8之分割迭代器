@@ -1,0 +1,95 @@
+Stream
+
+default Stream<E> stream() {
+        return StreamSupport.stream(spliterator(), false);
+    }
+Collection接口默认方法：返回一个串行流，作为这个集合的源。当spliterator无法返回一个不可变的或并行的或延迟绑定的分割迭代器，这个方法应该被重写。
+
+@Override
+    default Spliterator<E> spliterator() {
+        return Spliterators.spliterator(this, 0);
+    }
+Collection接口默认方法：针对集合元素创建一个分割迭代器。实现应该被分割迭代器报告为文档特性值。如果分割迭代器特性值是SIZEED并且集合不包含元素的场合，这些特性值是不需要报告的。
+
+默认实现应该被子类重写，可以返回一个更高效的分割迭代器。为了保留期望的流的延迟行为，分割迭代器要么拥有特性值IMMUTABLE或CONCURRENT,要么是延迟绑定的。如果上述的情况都不实际，那么需要用下面的方法重新定义stream和parallelStream方法：
+Stream<E> s = StreamSupport.stream(() -> spliterator(), spliteratorCharacteristics);
+
+默认实现创建一个来自集合的Iterator延迟绑定的分割迭代器。这个分割迭代器继承了集合迭代器的快速失败的属性。
+
+Spliterator分割迭代器
+
+public interface Spliterator<T>
+
+分割迭代器器是对源中的元素进行遍历和分区的对象。这些源可以是数组、集合、IO通道或者一个生成器函数。
+
+一个分割迭代器可以按顺序一个一个遍历元素，也可以通过块的方式遍历元素。
+
+分割跌迭代器会报告8种特性值：
+1.ORDERED，排序的
+2.DISTINCT，无重复的
+3.SORTED，排序的
+4.SIZED，固定大小的
+5.NONNULL，不为null的
+6.IMMUTABLE，不可变的
+7.CONCURRENT，并发的
+8.SUBSIZED，子分区固定大小的
+
+
+
+
+
+public interface OfPrimitive<T, T_CONS, T_SPLITR extends Spliterator.OfPrimitive<T, T_CONS, T_SPLITR>>
+            extends Spliterator<T> 
+专门为原生值设定的分割迭代器。
+T：分割迭代器返回的元素类型，它必须是原生类型的包装类型，比如int整型的返回类型是Integer。
+T_CONS：针对原生类型特化的java.util.function.Consumer，例如java.util.function.IntConsumer是针对Integer类型。
+T_SPLITR：原生的分割迭代器的类型，它必须是针对原生类型特化的Spliterator，例如Spliterator.OfInt是针对Integer类型。
+
+public interface OfInt extends OfPrimitive<Integer, IntConsumer, OfInt>
+@Override
+OfInt trySplit();
+
+@Override
+boolean tryAdvance(IntConsumer action);
+
+@Override
+default void forEachRemaining(IntConsumer action) {
+    do { } while (tryAdvance(action));
+} 
+
+@Override
+default boolean tryAdvance(Consumer<? super Integer> action) {
+    /*如果action是IntConsumer类型*/
+    /*实际上，IntConsumer接口与Consumer接口并没有继承关系*/
+    /*但是从accept方法的角度看，java中存在自动装箱和自动拆箱的机制，那么它们两个accept方法在接收原生类型或者是包装类型的时候具有相同的意义。在这种意义的上下文中，函数式接口之间就存在一种类似于继承的层次关系*/
+    if (action instanceof IntConsumer) {
+        /*返回接口方法调用*/
+        return tryAdvance((IntConsumer) action);
+    }
+    else {
+        /*否则，action需要适配到一个IntConsumer实例，通过对IntConsumer的参数进行装箱*/
+        if (Tripwire.ENABLED)
+            Tripwire.trip(getClass(),
+                            "{0} calling Spliterator.OfInt.tryAdvance((IntConsumer) action::accept)");
+        /*函数式参数传递，传递的是方法引用*/
+        return tryAdvance((IntConsumer) action::accept);
+    }
+}
+
+
+@Override
+default void forEachRemaining(Consumer<? super Integer> action) {
+    if (action instanceof IntConsumer) {
+        forEachRemaining((IntConsumer) action);
+    }
+    else {
+        if (Tripwire.ENABLED)
+            Tripwire.trip(getClass(),
+                            "{0} calling Spliterator.OfInt.forEachRemaining((IntConsumer) action::accept)");
+        forEachRemaining((IntConsumer) action::accept);
+    }
+}
+
+public interface OfLong extends OfPrimitive<Long, LongConsumer, OfLong>
+
+public interface OfDouble extends OfPrimitive<Double, DoubleConsumer, OfDouble>

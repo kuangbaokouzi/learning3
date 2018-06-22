@@ -1,0 +1,121 @@
+CriteriaQuery
+
+用于构建标准化查询，包含选择、表达式、谓词、排序。注意Predicate被用来替代Expression<Boolean>为了解决一个问题：Java泛型与可变参数不兼容。
+
+CriteriaQuery<Object> createQuery();创建一个查询对象。
+
+<T> CriteriaQuery<T> createQuery(Class<T> resultClass);创建一个指定返回结果类型的查询对象。
+
+CriteriaQuery<Tuple> createTupleQuery();创建一个元祖对象作为结果类型的查询对象。
+
+<T> CriteriaUpdate<T> createCriteriaUpdate(Class<T> targetEntity);创建一个CriteriaUpdate查询对象来执行批量更新操作。
+
+<T> CriteriaDelete<T> createCriteriaDelete(Class<T> targetEntity);创建一个CriteriaDelete查询对象来执行批量删除操作。
+
+Order asc(Expression<?> x);创建一个升序表达式。
+
+Order desc(Expression<?> x);创建一个降序表达式。
+
+<N extends Number> Expression<Double> avg(Expression<N> x);创建一个用于平均操作的并集表达式。
+
+<N extends Number> Expression<N> sum(Expression<N> x);创建一个用于加和操作的并集表达式。
+
+Expression<Long> sumAsLong(Expression<Integer> x);创建一个用于加和操作的并集表达式，结果转换成Long类型。
+
+Expression<Double> sumAsDouble(Expression<Float> x);创建一个用于加和操作的并集表达式，结果转换成Double类型。
+
+<N extends Number> Expression<N> max(Expression<N> x);
+
+<N extends Number> Expression<N> min(Expression<N> x);
+
+<X extends Comparable<? super X>> Expression<X> greatest(Expression<X> x);查找最大值（字符串、日期等）
+
+<X extends Comparable<? super X>> Expression<X> least(Expression<X> x);
+
+Expression<Long> count(Expression<?> x);计数，结果转换成Long类型。
+
+Expression<Long> countDistinct(Expression<?> x);去重复计数，结果转换成Long类型。
+
+Predicate exists(Subquery<?> subquery);创建一个谓词检测子查询结果是否存在。
+
+<Y> Expression<Y> all(Subquery<Y> subquery);创建一个在子查询结果之上的all表达式。
+
+<Y> Expression<Y> some(Subquery<Y> subquery);创建一个在子查询结果之上的some表达式。
+
+<Y> Expression<Y> any(Subquery<Y> subquery);创建一个在子查询结果之上的any表达式。
+
+Predicate and(Expression<Boolean> x, Expression<Boolean> y);创建一个给定boolean表达式的连词and。
+
+Predicate and(Predicate... restrictions);创建一个给定限制谓词的连词and。如果没有谓词，连词结果为true。
+
+Predicate or(Expression<Boolean> x, Expression<Boolean> y);
+
+Predicate or(Predicate... restrictions);
+
+Predicate not(Expression<Boolean> restriction);
+
+Predicate conjunction();
+
+Predicate disjunction();
+
+Predicate isTrue(Expression<Boolean> x);
+
+Predicate isFalse(Expression<Boolean> x);
+
+Predicate isNull(Expression<?> x);
+
+Predicate isNotNull(Expression<?> x);
+
+Predicate equal(Expression<?> x, Expression<?> y);
+
+Predicate equal(Expression<?> x, Object y);
+
+Predicate notEqual(Expression<?> x, Expression<?> y);
+
+Predicate notEqual(Expression<?> x, Object y);
+
+<Y extends Comparable<? super Y>> Predicate greaterThan(Expression<? extends Y> x, Expression<? extends Y> y);
+
+<Y extends Comparable<? super Y>> Predicate greaterThan(Expression<? extends Y> x, Y y);
+
+<Y extends Comparable<? super Y>> Predicate greaterThanOrEqualTo(Expression<? extends Y> x, Expression<? extends Y> y);
+
+<Y extends Comparable<? super Y>> Predicate greaterThanOrEqualTo(Expression<? extends Y> x, Y y);
+
+<Y extends Comparable<? super Y>> Predicate lessThan(Expression<? extends Y> x, Expression<? extends Y> y);
+
+<Y extends Comparable<? super Y>> Predicate lessThan(Expression<? extends Y> x, Y y);
+
+<Y extends Comparable<? super Y>> Predicate lessThanOrEqualTo(Expression<? extends Y> x, Expression<? extends Y> y);
+
+<Y extends Comparable<? super Y>> Predicate lessThanOrEqualTo(Expression<? extends Y> x, Y y);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

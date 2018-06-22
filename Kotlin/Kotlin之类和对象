@@ -1,0 +1,525 @@
+Kotlin类和对象
+
+在Kotlin中，一个类可以由一个primary构造器以及一个或多个secondary构造器
+
+class MyClass constructor(username: String){// 主构造方法
+
+}
+primary构造器是类头（class header）一部分，紧跟类名，可以拥有若干参数，需要使用constructor关键字
+
+class MyClass(username: String) {// 主构造方法
+
+}
+如果primary构造器没有任何注解或可见性关键字修饰，constructor关键字可以省略
+
+
+class MyClass(username: String) {
+    /*使用primary构造方法中的username参数的字母大写字符串初始化username属性*/
+    private val username: String = username.toUpperCase()
+
+    init {
+        println(username)// 初始化代码块可以直接访问primary构造方法中的参数
+    }
+}
+primary构造方法是不可以有逻辑代码部分的，初始化属性的工作交给init代码块来完成，也可以直接在定义属性的时候直接初始化
+
+
+fun main(args: Array<String>) {
+    var myClass = MyClass("zhangsan")
+    println(myClass)
+}
+创建对象
+
+class Person(username: String) {
+    /*Kotlin类中的属性是必须初始化的，不然会报错*/
+    private var username: String
+    private var age: Int
+    private var address: String
+
+    init {
+        println(username)
+        this.username = username
+        this.age = 20
+        this.address = "Shanghai"
+    }
+}
+定义属性并初始化
+
+class Person(username: String) {
+    private var username: String
+    private var age: Int
+    private var address: String
+
+    init {
+        println(username)
+        this.username = username
+        this.age = 20
+        this.address = "Shanghai"
+    }
+
+    /*在secondary构造方法后通过冒号直接调用primary构造方法*/
+    constructor(username: String, age: Int) : this(username) {
+        println("$username, $age")
+
+        this.username = username
+        this.age = age
+        this.address = "Beijing"
+    }
+    /*在secondary构造方法后通过冒号直接调用secondary构造方法，间接调用primary构造方法*/
+    constructor(username: String, age: Int, address: String) : this(username, age) {
+        println("$address")
+
+        this.address = address
+    }
+}
+secondary构造方法必须直接或间接调用primary构造方法。
+
+fun main(args: Array<String>) {
+    val person = Person("kate")
+    val person2 = Person("liming", 30)
+    val person3 = Person("walt", 25, "Wuhan")
+
+    person.printPerson()
+    person2.printPerson()
+    person3.printPerson()
+}
+username: kate, age: 20, address: Shanghai
+username: liming, age: 30, address: Beijing
+username: walt, age: 25, address: Wuhan
+使用不同的构造器创建对象。
+
+如果没有显式定义primary或者secondary构造器，系统会创建默认的primary构造器，不带参数，public可见性。
+
+class Student (private val username: String,
+               private val age: Int,
+               private var address: String){
+    fun printStudent(){
+        println("username: $username, age: $age, address: $address")
+    }
+}
+如此也可以声明构造方法，而且构造方法中的参数同时被解析为属性，这样在printStudent中就可以直接使用构造方法中的参数也就是属性。如果去掉private val部分，则只能表示参数而不能表示属性；如果去掉private，那么可见性就变成public。
+
+class Teacher(val username: String = "Clark"){
+    
+}
+fun main(args: Array<String>) {
+    println(Teacher().username)
+    println(Teacher("Allen").username)
+}
+Clark
+Allen
+如果primary构造器所有的参数都有默认值，编译器会生成另一个不带参数的构造方法，这个构造方法会使用这些默认值对属性进行初始化。这里是为了与第三方框架兼容。
+
+open class Parent(name: String, age: Int) {
+}
+
+class Child(name: String, age: Int) : Parent(name, age) {
+
+}
+Kotlin中，所有类默认是无法继承的，也就是说默认情况下所有类都是final的。如果需要一个类被继承，那么需要将这个类定义成open class，open的意义就与final完全相反。
+
+open class Parent2(name: String) {
+
+}
+
+class Child2 : Parent2 {
+    constructor(name: String) : super(name) {
+    }
+}
+Kotlin中，如果子类没有primary构造方法，那么需要定义secondary构造方法，然后在secondary构造方法上使用super关键字调用父类的构造方法。
+
+open class Fruit {
+    open fun printName() {
+        println("Fruit")
+    }
+
+    fun printDate(){
+        println("1 month")
+    }
+}
+
+class Apple : Fruit() {
+    override fun printName() {
+        println("apple")
+    }
+}
+
+fun main(args: Array<String>) {
+    var apple = Apple()
+    apple.printName()
+    apple.printDate()
+}
+apple
+1 month
+方法重写一方面必须在子类中指定override关键字，另一方面必须在父类中需要重写的方法上指定open关键字。
+
+open class Orange : Fruit() {
+    final override fun printName() {
+        println("orange")
+    }
+}
+Orange继承了Fruit并重写了父类的printName方法，如果不想Orange中的printName方法被继承，可以在方法声明上使用final关键字。
+
+open class MyParent {
+    open val name: String = "parent"
+}
+
+class MyChild : MyParent() {
+    override val name: String = "child"
+}
+属性的继承与重写与方法类似，必须在子类中指定override关键字，在父类中指定open关键字。
+
+class MyChild2(override val name:String): MyParent(){
+    
+}
+属性重写也可以在子类的primary构造器中发生。
+
+open class MyParent3 {
+    open fun method() {
+        println("parent method")
+    }
+
+    open val name: String get() = "parent name"
+}
+
+class MyChild3 : MyParent3() {
+    override fun method() {
+        super.method()
+        println("child method")
+    }
+
+    override val name: String
+        get() = super.name + " and child name"
+}
+
+fun main(args: Array<String>) {
+    var myChild3 = MyChild3();
+    myChild3.method()
+    println(myChild3.name)
+}
+parent method
+child method
+parent nameand child name
+在Kotlin中，也存在类似于getter方法的存在，open val name: String get() = "parent name"。var属性可以被var属性重写，val属性可以被var属性重写，var属性不可以被val属性重写。val属性是只读属性，相当于属性的get方法；var属性是可读可写属性，相当于既有get方法又有set方法。这种能力可以被扩大，不可以被缩小。
+
+interface A {
+    fun method() {
+        println("A")
+    }
+}
+
+open class B {
+    open fun method() {
+        println("B")
+    }
+}
+
+class C : A, B() {
+    override fun method() {
+        super<A>.method()
+        super<B>.method()
+        println("C")
+    }
+}
+
+fun main(args: Array<String>) {
+    C().method()
+}
+C继承B并且实现了A，首先C必须重写继承过来的方法，其次如果想要调用接口A或父类B中的方法，可以通过super<>的方式。
+
+open class BaseClass {
+    open fun method() {
+
+    }
+}
+
+abstract class ChildClass : BaseClass() {
+    abstract override fun method()
+}
+open方法可以被抽象类中重写成抽象方法。
+
+object MyObject{
+    fun method(){
+        println("method")
+    }
+}
+
+fun main(args: Array<String>) {
+    MyObject.method()
+}
+对象声明，声明的对象可以直接使用。
+
+class MyTest{
+    /*伴生对象，它的属性和方法可以直接通过伴生类MyTest.属性名/方法名的方式调用，十分类似静态方法*/
+    /*在一个类中只允许定义一个伴生对象*/
+    companion object MyObject{
+        var a = 10
+        fun method(){
+            println("method invoked!")
+        }
+    }
+}
+
+fun main(args: Array<String>) {
+    /*伴生对象的名字是可以省略的，默认会给伴生对象使用Companion作为对象名*/
+    MyTest.MyObject.method()
+    println(MyTest.a)
+    MyTest.method()
+
+    /*伴生对象在转换成字节码的时候会被作为伴生类的静态内部类实例*/
+//  @JvmStatic
+    println(MyTest.MyObject.javaClass)
+}
+method invoked!
+10
+method invoked!
+class com.laowuandhisfriends.kotlin.grammer.MyTest$MyObject
+在Kotlin中没有static方法，在大多数情况下，Kotlin推荐的做法是使用包级别的函数来作为静态方法。
+注意：
+虽然伴生对象看起来像是Java中的静态成员，但在运行期，它们依旧是真实对象的实例成员；
+在JVM上，可以将伴生对象的成员真正生成为类的静态属性和方法，这是通过@JvmStatic注解来实现的；
+伴生对象在编译后会生成一个静态内部类。
+
+Compiled from "HelloKotlin19.kt"
+public final class com.laowuandhisfriends.kotlin.grammer.MyTest {
+  public static final com.laowuandhisfriends.kotlin.grammer.MyTest$MyObject MyObject;
+
+  public com.laowuandhisfriends.kotlin.grammer.MyTest();
+    Code:
+       0: aload_0
+       1: invokespecial #8                  // Method java/lang/Object."<init>":()V
+       4: return
+
+  static {};
+    Code:
+       0: new           #41                 // class com/laowuandhisfriends/kotlin/grammer/MyTest$MyObject
+       3: dup
+       4: aconst_null
+       5: invokespecial #46                 // Method com/laowuandhisfriends/kotlin/grammer/MyTest$MyObject."<init>":(Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+       8: putstatic     #39                 // Field MyObject:Lcom/laowuandhisfriends/kotlin/grammer/MyTest$MyObject;
+      11: bipush        10
+      13: putstatic     #19                 // Field a:I
+      16: return
+
+  public static final int access$getA$cp();
+    Code:
+       0: getstatic     #19                 // Field a:I
+       3: ireturn
+
+  public static final void access$setA$cp(int);
+    Code:
+       0: iload_0
+       1: putstatic     #19                 // Field a:I
+       4: return
+
+  public static final void method();// 编译器生成了静态方法method
+    Code:
+       0: getstatic     #39                 // Field MyObject:Lcom/laowuandhisfriends/kotlin/grammer/MyTest$MyObject;
+       3: invokevirtual #43                 // Method com/laowuandhisfriends/kotlin/grammer/MyTest$MyObject.method:()V
+       6: return
+}
+反编译MyTest的字节码。
+
+class ThePerson(address: String, name: String) {
+    val age: Int
+        get() = 20
+
+    var address: String = address
+        get() {
+            println("getAddress invoked!")
+            return field
+        }
+        set(value) {
+            println("setAddress invoked!")
+            field = value
+        }
+}
+
+fun main(args: Array<String>) {
+    var person = ThePerson("Shanghai", "Walk")
+    println(person.age)
+    println(person.address)
+    person.address = "NewYork"
+    println(person.address)
+}
+20
+getAddress invoked!
+Shanghai
+setAddress invoked!
+getAddress invoked!
+NewYork
+val属性包含一个get方法，var属性包含一个get方法和一个set方法，如果没有显式指定，编译器会创建它们，也可以通过显式定义的方法设计get方法和set方法。对象调用属性的本质上是对get方法和set方法的调用。field是属性支撑域（backing field）。
+
+lombok可以通过注解的方式帮助自动生成getter和setter。
+
+class TheClass {
+    lateinit var name: String
+
+    fun init() {
+        this.name = "Sun"
+    }
+
+    fun print() {
+        println(this.name)
+    }
+}
+
+fun main(args: Array<String>) {
+    var theClass = TheClass()
+    theClass.init()
+    theClass.print()
+}
+延迟初始化：Kotlin中的属性在定义的时候一定要被初始化，如果不想这样，可以通过lateinit关键字实现属性的延迟初始化。
+Kotlin要求非空类型的属性必须要在构造方法中进行初始化;
+通过lateinit关键字标识属性为延迟初始化，需要满足3个条件：
+1.lateinit只能用在类体中声明的var属性上，不能用在primary constructor声明的属性上
+2.属性不能拥有自定义的setter和getter
+3.属性类型必须为非空，且不能是原生数据类型
+
+open class Clazz() {
+    val a = 2
+    private val b = 3
+    protected open val c = 4
+    internal val d = 5
+}
+
+class SubClass : Clazz() {
+
+}
+
+fun main(args: Array<String>) {
+    var subClass = SubClass()
+    println(subClass.a)
+//    println(subClass.b)
+//    println(subClass.c)
+    println(subClass.d)
+}
+Kotlin提供了4中可见性修饰符：private、protected、internal、public
+1.顶层声明（直接在包文件中定义的方法或类）
+默认修饰符是public；
+private修饰符表示定义的文件中可用；
+internal修饰符表示同一个模块（Module）中可用；
+protected修饰符不可用在顶层声明中。
+
+2.类中声明
+默认修饰符是public，可被继承；
+private修饰符表示类的内部可用，无法被继承；
+internal修饰符表示同一个模块（Module）中可用，可被继承；
+protected修饰符表示类的内部可用，无法被继承。
+
+class ExtensionTest{
+    fun add(a:Int, b:Int) = a + b
+    fun sub(a:Int, b:Int) = a - b
+}
+
+fun ExtensionTest.multiply(a:Int, b:Int) = a * b
+
+fun main(args: Array<String>) {
+    var extensionTest = ExtensionTest()
+    println(extensionTest.add(1,2))
+    println(extensionTest.sub(1,2))
+    println(extensionTest.multiply(1,2))
+}
+扩展：在不改变原有的类的基础之上，通过扩展给类增加方法等操作。
+
+open class AA
+
+class BB : AA()
+
+fun AA.a() = "aa"
+
+fun BB.b() = "bb"
+
+fun myPrint(aa: AA) {
+    println(aa.a())
+}
+
+fun main(args: Array<String>) {
+    myPrint(BB())
+}
+扩展函数的解析是静态的：
+1.扩展增加的属性或方法并不是插入到原有的类中，原有的类并没有改变；
+2.扩展函数的解析是静态分发的，而不是动态的，即不支持多态，调用只取决于对象的声明类型；
+3.调用是由对象声明类型所决定的，而不是由对象的实际类型决定
+
+class CC {
+    fun foo() {
+        println("foo")
+    }
+}
+
+fun CC.foo() {
+    println("CC.foo")
+}
+扩展的方法与既有的方法重名，扩展的方法没有意义。扩展支持重载的机制。
+
+fun Any?.toString(): String {
+    if (null == this)
+        return "null"
+    return toString()
+}
+对可空的对象进行扩展。
+
+class ExtensionProperty
+
+val ExtensionProperty.name: String
+    get() = "hello"
+
+fun main(args: Array<String>) {
+    println(ExtensionProperty().name)
+}
+属性扩展。
+
+class ExtensionCompanion{
+    companion object MyObject
+}
+fun ExtensionCompanion.MyObject.method(){
+    println("hello world")
+}
+
+fun main(args: Array<String>) {
+    ExtensionCompanion.method()
+}
+伴生对象扩展。
+
+class DD {
+    fun method() {
+        println("dd method")
+    }
+}
+
+class EE {
+    fun method2() {
+        println("ee method")
+    }
+
+    fun DD.hello() {
+        method()
+        method2()
+        println("hello")
+    }
+
+    fun world(dd: DD) {
+        dd.hello()
+    }
+
+    fun DD.output() {
+        println(toString())
+        println(this@EE.toString())
+    }
+
+    fun test(dd: DD) {
+        dd.output()
+    }
+}
+
+fun main(args: Array<String>) {
+    EE().world(DD())
+    EE().test(DD())
+}
+扩展的作用域：
+1.扩展函数所定义在的类实例叫做分发接收者（Dispatcher receiver）
+2.扩展函数所扩展的那个类的实例叫做扩展接收者（extension receiver）
+3.当以上两个名字出现冲突时，扩展接收者优先级更高
+
+扩展可以很好地解决java中充斥的各种辅助类的问题。比如，Collections等。

@@ -1,0 +1,422 @@
+Kotlin高级编程
+
+数据类（data class）
+
+data class Person(val name:String, var age: Int, var address: String)
+
+fun main(args: Array<String>) {
+    var person = Person("Kate",20,"LOS")
+    println(person)
+}
+数据类（类似entity/domain/mmodel）
+1.primary构造器至少由一个参数
+2.primary构造器的参数必须用val或者var定义
+3.数据类不可以是abstract、open、sealed或inner的
+
+fun main(args: Array<String>) {
+    var person = Person("Kate",20,"LOS")
+    println(person)
+    var person2 = person.copy(address = "Flor")
+    println(person2)
+}
+对于数据类，编译器会自动生成如下内容：
+1.equals/hashcode
+2.toString
+3.针对属性的componentN方法，并且是按照属性的声明顺序生成的
+
+数据类成员的继承：
+1.如果数据类中显式定义了equals、hashcode或toString方法，或是在数据类的父类中将这些方法声明为了final，那么这些方法就不会再生成，转而使用已有的
+2.如果父类拥有componentN方法，并且是open的以及返回兼容的类型，那么编译器就会在数据类中生成相应的componentN方法，并重写父类的方法，如果父类中的这些方法由于不兼容的签名或被定义为final，编译器会报错
+3.在数据类中显式提供componentN方法以及copy方法是不被允许的
+
+fun main(args: Array<String>) {
+    var person = Person("Kate",20,"LOS")
+    println(person)
+    var person2 = person.copy(address = "Flor")
+    println(person2)
+    var (name, age, address) = person // 解构语法，按顺序解析
+    println("$name, $age, $address")
+}
+解构声明
+在primary构造器中有多少个参数，就会依次生成多少个对应的component1， component2， component3...，这些方法返回的就是对应字段的值，而componentN方法是用来实现解构声明的。
+
+data class Person2(val name: String = "", var age: Int = 0, val address: String = "")
+在jvm平台上，如果生成的类需要无参构造方法，就需要为所有属性执行默认值。
+
+密封类（sealed class）
+
+sealed class Calculator
+
+class Add : Calculator()
+
+class Sub : Calculator()
+
+class Multiply : Calculator()
+
+fun calculate(a: Int, b: Int, calculator: Calculator) = when (calculator) {
+    is Add -> a + b
+    is Sub -> a - b
+    is Multiply -> a * b
+}
+
+fun main(args: Array<String>) {
+    println(calculate(1, 2, Add()))
+    println(calculate(1, 2, Sub()))
+    println(calculate(1, 2, Multiply()))
+}
+密封类描述的是类之间的层次关系，父类与其直接子类必须定义在同一个文件中。
+
+泛型（generics），表示变量类型参数化
+
+class MyGeneric<T>(var t: T)
+
+fun main(args: Array<String>) {
+    var myGeneric = MyGeneric("hello world")
+    println(myGeneric.t)
+}
+借助于Kotlin的类型推断，并不需要显式指定泛型。
+
+泛型之协变（convariant）和逆变（controvariant）
+
+void addAll(Collection<E> items);
+
+void copyAll(Collection<Object> to, Collection<String> from){
+    to.addAll(from);
+}
+在此，to.addAll(from)不成功；将addAll方法进行修改：
+void addAll(Collection<? extends E> items); to.addAll(from)成功。
+Collection<String>是Collection<? extends Object>的类型，这称之为协变；List<? super String>则称之为逆变。
+
+生产者使用? extends E，消费者使用? super E
+
+class MyClass<out T, in M>(t: T, m: M) {
+    private var t: T
+    private var m: M
+
+    init {
+        this.t = t
+        this.m = m
+    }
+
+    fun get(): T = this.t
+    fun set(m: M) {
+        this.m = m
+    }
+}
+
+fun myTest(myClass: MyClass<String, Number>) {
+    var myObject: MyClass<Any, Int> = myClass
+    println(myObject.get())
+}
+
+fun main(args: Array<String>) {
+    myTest(MyClass("welcome", 20))
+}
+out关键字描述的是协变，in关键字描述的是逆变。
+
+interface Producer<out T> {
+    fun produce(): T
+}
+
+interface Consumer<in T> {
+    fun consume(t: T)
+}
+
+interface ProducerConsumer<T> {
+    fun produce(): T
+    fun consume(t: T)
+}
+
+open class Fruit
+
+open class Apple : Fruit()
+
+class ApplePear : Apple()
+
+class FruitProducer : Producer<Fruit> {
+    override fun produce(): Fruit {
+        println("produce fruit")
+        return Fruit()
+    }
+}
+
+class AppleProducer : Producer<Apple> {
+    override fun produce(): Apple {
+        println("produce apple")
+        return Apple()
+    }
+}
+
+class ApplePearProducer : Producer<ApplePear> {
+    override fun produce(): ApplePear {
+        println("produce apple pear")
+        return ApplePear()
+    }
+}
+
+class Human : Consumer<Fruit> {
+    override fun consume(t: Fruit) {
+        println("consume fruit")
+    }
+}
+
+class Man : Consumer<Apple> {
+    override fun consume(t: Apple) {
+        println("consume apple")
+    }
+}
+
+class Boy : Consumer<ApplePear> {
+    override fun consume(t: ApplePear) {
+        println("consume apple pear")
+    }
+}
+
+fun main(args: Array<String>) {
+    /*对于"out"泛型来说，可以将子类型的对象赋值给父类型的引用*/
+    val producer1: Producer<Fruit> = FruitProducer()
+    val producer2: Producer<Fruit> = AppleProducer()
+    val producer3: Producer<Fruit> = ApplePearProducer()
+
+    /*对于"in"泛型来说，可以将父类型的对象赋值给子类型的引用*/
+    val consumer1: Consumer<ApplePear> = Human()
+    val consumer2: Consumer<ApplePear> = Man()
+    val consumer3: Consumer<ApplePear> = Boy()
+}
+如果只将泛型类型作为输出类型，就可以声明成out；如果只将泛型类型作为输入类型，就可以声明成int。如果同时将泛型类型作为输入类型和输出类型，就不可以使用in/out关键字修饰，属于不变类型。
+
+类型投影（type projection，使用处协变use-side variance）
+fun copy(from: Array<out Any>, to: Array<Any>) {
+    assertTrue(from.size == to.size)
+
+    for (i in from.indices) {
+        to[i] = from[i] // from只能调用get方法，使用处协变
+    }
+}
+
+fun setValue(to: Array<in String>, index: Int, value: String) {
+    to[index] = value // to只能调用set方法，使用处逆变
+}
+
+fun main(args: Array<String>) {
+    val from: Array<Int> = arrayOf(1, 2, 3, 4)
+    val to: Array<Any> = Array(4, { "hello" + it })
+    copy(from, to)
+
+    for (it in to) {
+        println(it)
+    }
+
+    val array: Array<Any> = Array(4, { _ -> "hello" })
+
+    setValue(array, 2, "welcome")
+
+    for (it in array) {
+        println(it)
+    }
+}
+
+星投影（star projection）
+
+Star<out T>：如果T的上界是TUpper，那么Star<*>就相当于Star<out T>，这表示当T的类型未知时，从Star<*>可以安全读取TUpper类型的值
+Star<in T>：Star<*>就相当于Star<in Nothing>，这表示无法向其中写入任何值
+Star<T>：如果T的上界是TUpper，那么Star<*>就相当于读取时的Star<out TUpper>以及写入时的Star<in Nothing>
+
+class Star<out T>
+
+class Star2<in T> {
+    fun setValue(t: T) {
+
+    }
+}
+
+class Star3<T>(private var t: T) {
+    fun setValue(t: T) {
+
+    }
+
+    fun getValue(): T = this.t
+}
+
+fun main(args: Array<String>) {
+    val star: Star<Number> = Star<Int>()
+    val star2: Star<*> = star
+
+    val star3: Star2<Int> = Star2<Number>()
+    val star4: Star2<*> = star3
+//    star4.setValue(1)
+
+    val star5: Star3<String> = Star3("hello")
+    val star6: Star3<*> = star5
+
+    println(star6.getValue())
+//    star6.setValue("world")
+
+    val list: MutableList<*> = mutableListOf("hello", "world", "welcome")
+    println(list[0])
+//    list[0] = "bye"
+}
+
+泛型擦除，当使用@UnsafeVariance注解的时候，不会将真正将泛型进行类型转换
+class MyStorage<out T>(private var t: T){
+    fun getValue():T = this.t
+
+    fun setValue(t: @UnsafeVariance T){// 泛型擦除
+        this.t = t
+    }
+}
+
+fun main(args: Array<String>) {
+    var myStorage: MyStorage<Int> = MyStorage(5)
+    val myStorage2: MyStorage<Any> = myStorage
+
+    println(myStorage2.getValue())
+    myStorage2.setValue("hello")// 泛型擦除
+    println(myStorage2.getValue())
+}
+
+泛型函数
+fun <T> getValue(item: T): T {
+    return item
+}
+
+泛型上界
+class UpperBoundsClass2<T> where T : Comparable<T>, T : Any
+
+fun main(args: Array<String>) {
+    val item = getValue(3)
+    val item2 = getValue("hello")
+    println("$item, $item2")
+
+    val upperBoundsClass = UpperBoundsClass2<String>()
+}
+
+嵌套类（Nested class）
+class OuterClass {
+    private val string: String = "hello world"
+
+    class NestedClass {
+        fun nestedMethod() = "method"
+    }
+}
+
+fun main(args: Array<String>) {
+    println(OuterClass.NestedClass().nestedMethod())
+}
+
+内部类（Inner class）
+class OuterClass2 {
+    private val string: String = "welcome"
+
+    inner class InnerClass {
+        fun innerMethod() = this@OuterClass2.string + " hello world"
+    }
+}
+
+fun main(args: Array<String>) {
+    println(OuterClass2().InnerClass().innerMethod())
+}
+
+嵌套类与内部类的区别:
+1.嵌套类对应java中的静态内部类，只要在一个类中定义另外一个类，被定义的类就叫做嵌套类；
+2.内部类对应java中的非静态内部类，在一个类中定义另外一个类并使用inner关键字修饰了这个被定义的类，这个类就叫做内部类
+class Person(val name: String, var age: Int) {
+    private inner class PersonFuture(var height: Int, var weight: Int) {
+        fun getPersonFuture() {
+            println("height: $height, weight: $weight")
+            this@Person.method()
+        }
+    }
+
+    private fun method() {
+        println("Person.method invoked!")
+    }
+
+    fun getPerson(){
+        val personFuture = PersonFuture(120,80)
+        personFuture.getPersonFuture()
+    }
+}
+
+fun main(args: Array<String>) {
+    val person = Person("Kate", 20)
+    person.getPerson()
+}
+
+对象表达式（Object expression）
+为解决匿名内部类的缺陷而产生的
+interface MyInterface {
+    fun myPrint(a: Int)
+}
+
+abstract class MyAbstractClass {
+    abstract val age: Int
+    abstract fun printMyAbstractClassInfo()
+}
+
+fun main(args: Array<String>) {
+    var myObject = object : MyInterface {
+        override fun myPrint(a: Int) {
+            println("a = $a")
+        }
+    }
+    myObject.myPrint(8)
+
+    var myObject2 = object : MyAbstractClass() {
+        override val age: Int
+            get() = 20
+
+        override fun printMyAbstractClassInfo() {
+            println("age = $age")
+        }
+    }
+    myObject2.printMyAbstractClassInfo()
+
+    var myObject3 = object {
+        init{
+            println("init myObject3")
+        }
+
+        var myProperty = "hello world"
+
+        fun myMethod() = {
+            println("myMethod invoked!$myProperty")
+        }
+    }
+    myObject3.myMethod()
+
+    var myObject4 = object : MyInterface, MyAbstractClass(){
+        override fun myPrint(a: Int) {
+            println("a = $a")
+        }
+
+        override val age: Int
+            get() = 100
+
+        override fun printMyAbstractClassInfo() {
+            println("age = $age")
+        }
+    }
+    myObject4.myPrint(99)
+    myObject4.printMyAbstractClassInfo()
+}
+
+对象表达式的注意事项：
+1.匿名对象只能在局部变量范围内或是被private修饰的成员变量范围内才能被识别出真正的类型
+2.如果将匿名对象当做一个public方法的返回类型或是public属性的类型，那么该方法或是属性的真正类型就是该匿名对象所声明的父类型
+3.如果没有声明任何父类型，那么其类型就是Any；在这种情况下，匿名对象中所声明的任何成员都是无法访问的。
+class MyClass{
+    private var myObject = object {
+        fun output(){
+            println("output invoked")
+        }
+    }
+
+    fun myTest(){
+        myObject.output()
+    }
+}
+
+fun main(args: Array<String>) {
+    MyClass().myTest()
+}

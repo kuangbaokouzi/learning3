@@ -1,0 +1,198 @@
+Collectors
+
+对于Collectors静态工厂来说，其实现一共分为两种：
+1、通过CollectorImpl来实现。
+2、通过reducing方法来实现：reducing方法本身又是通过CollectorImpl实现的。
+
+public static <T, U, A, R>
+Collector<T, ?, R> mapping(Function<? super T, ? extends U> mapper,
+                       Collector<? super U, A, R> downstream) {
+	// 获得下游的收集器
+	BiConsumer<A, ? super U> downstreamAccumulator = downstream.accumulator();
+	return new CollectorImpl<>(downstream.supplier(),// 下游结果容器
+				   /*下游收集器，其中下游收集的元素是通过上游元素应用到mapper函数后的结果*/
+		                   (r, t) -> downstreamAccumulator.accept(r, mapper.apply(t)),
+		                   downstream.combiner(), // 下游结果组合器
+				   downstream.finisher(),// 下游结果转换器
+		                   downstream.characteristics());// 下游累积操作特性值
+}
+在元素累积收集之前，对每个收集器应用一个映射函数。mapping在使用多级汇聚的场合是非常有用的。比如用在一个groupingBy或partitioningBy的下游。
+Map<City, Set<String>> lastNamesByCity = people.stream().collect(groupingBy(Person::getCity,
+          mapping(Person::getLastName, toSet())));
+通过city字段对people中的person进行分组，每个分组是一组Person对象；在此基础上引用一个mapping函数，将Person对象映射成LastName字段，并最终保存到Set<String>结果容器中。
+
+
+public static<T,A,R,RR> Collector<T,A,RR> collectingAndThen(Collector<T,A,R> downstream,
+                                                                Function<R,RR> finisher) {
+
+	/*获得下游收集器的特性值*/
+        Set<Collector.Characteristics> characteristics = downstream.characteristics();
+	/*如果包含IDENTITY_FINISH（表示转换前后结果类型一致）*/
+        if (characteristics.contains(Collector.Characteristics.IDENTITY_FINISH)) {
+	    /*如果仅仅只有一个IDENTITY_FINISH特性值*/
+            if (characteristics.size() == 1)
+                characteristics = Collectors.CH_NOID;// 将特性值的集合清空
+            /*如果仅有一个IDENTITY_FINISH和其它特性值*/
+	    else {
+                characteristics = EnumSet.copyOf(characteristics);// 复制特性值到新的枚举集合
+                characteristics.remove(Collector.Characteristics.IDENTITY_FINISH);// 移除IDENTITY_FINISH
+                characteristics = Collections.unmodifiableSet(characteristics);// 转换成不可变的特性值集合
+            }
+        }
+	/*如果不包含IDENTITY_FINISH（表示转换前后结果类型不一致）*/
+        return new CollectorImpl<>(downstream.supplier(),// 下游结果容器
+                                   downstream.accumulator(),// 下游收集器
+                                   downstream.combiner(),// 下游结果组合器
+				   /*在下游转换器应用后，再应用到一个新的转换器finisher做进一步的转换*/
+                                   downstream.finisher().andThen(finisher),
+                                   characteristics);// 新的特性值集合
+    }
+应用一个Collector执行进一步的结果转换。比如，应用到toList收集器使其总是产生一个不变的结果集合。
+List<String> people = people.stream().collect(collectingAndThen(toList(), Collections::unmodifiableList));
+
+
+public static <T> Collector<T, ?, Integer>
+summingInt(ToIntFunction<? super T> mapper) {
+	return new CollectorImpl<>(
+		() -> new int[1],// 结果容器，长度为1的整型数组，包含初始值0
+		/*累加器，将每个输入元素应用到ToIntFunction函数，然后将返回值加到结果容器中*/
+		(a, t) -> { a[0] += mapper.applyAsInt(t); },
+		(a, b) -> { a[0] += b[0]; return a; },// 将后续结果容器的值加到第一个结果容器中
+		a -> a[0],// 结果容器本身是一个数组，而最后得到的结果应该是一个整型值，所以应该返回数组的第一个元素
+	        CH_NOID);// 特性值集合是空的
+}
+对integer类型输入元素应用求和函数，如果没有输入元素，则返回0。
+
+
+
+public static <T> Collector<T, ?, Long>
+    counting() {
+	/*利用reducing对输入元素计数*/
+        return reducing(0L, e -> 1L, Long::sum);
+    }
+返回输入元素的个数，如果不存在输入元素，则返回0。
+
+public static <T, U>
+Collector<T, ?, U> reducing(U identity,
+                        Function<? super T, ? extends U> mapper,
+                        BinaryOperator<U> op) {
+	return new CollectorImpl<>(
+		boxSupplier(identity),// 创建结果容器，本质上是一个T[]
+		/*先将输入元素应用到Function函数，其返回结果再应用到BinaryOperator函数，它的返回结果赋值给数组的第一个元素*/
+		(a, t) -> { a[0] = op.apply(a[0], mapper.apply(t)); },
+		/*将后续的数组和第一个数组应用到BinaryOperator函数，它的返回结果赋值给第一个元素*/		
+		(a, b) -> { a[0] = op.apply(a[0], b[0]); return a; },
+		a -> a[0],// 结果保留数组的第一个元素
+		CH_NOID);// 无特性值
+}
+
+
+private static <T> Supplier<T[]> boxSupplier(T identity) {
+	/*创建一个包含identity的数组，并返回Supplier*/
+	return () -> (T[]) new Object[] { identity };
+}
+
+
+public static <T, K> Collector<T, ?, Map<K, List<T>>>
+    groupingBy(Function<? super T, ? extends K> classifier) {
+        return groupingBy(classifier, toList());
+    }
+T是输入元素的类型，K是分类器返回的结果类型，也就是分类的依据。K会作为最终分组结果的组别值，也就是最终分组的集合中的键的位置。List<T>是最终的分组的信息集合，它作为分组集合中的值。
+public static <T, K, A, D>
+    Collector<T, ?, Map<K, D>> groupingBy(Function<? super T, ? extends K> classifier,
+                                          Collector<? super T, A, D> downstream) {
+        return groupingBy(classifier, HashMap::new, downstream);
+    }
+T是输入元素类型，K是分组集合中的键，A是累加器的类型，D就是List<T>。
+public static <T, K, D, A, M extends Map<K, D>>
+    Collector<T, ?, M> groupingBy(Function<? super T, ? extends K> classifier,
+                                  Supplier<M> mapFactory,
+                                  Collector<? super T, A, D> downstream) {
+        Supplier<A> downstreamSupplier = downstream.supplier();// 下游结果容器
+        BiConsumer<A, ? super T> downstreamAccumulator = downstream.accumulator();// 下游累积器
+        BiConsumer<Map<K, A>, T> accumulator = (m, t) -> {
+	    /*将输入元素t应用到分类器函数，如果结果不为null，作为键*/
+            K key = Objects.requireNonNull(classifier.apply(t), "element cannot be mapped to a null key");
+	    /*查看最终结果map中是否存在当前key，如果存在，把key对应的下游结果容器返回，如果不存在，则创建一个新的下游结果容器，与key形成映射，返回这个结果容器*/
+            A container = m.computeIfAbsent(key, k -> downstreamSupplier.get());
+	    /*将输入元素t应用到结果容器*/
+            downstreamAccumulator.accept(container, t);
+        };
+	/*利用下游组合器（List<T>）构建新的组合器（Map<K,List<T>>）*/
+        BinaryOperator<Map<K, A>> merger = Collectors.<K, A, Map<K, A>>mapMerger(downstream.combiner());
+	/*新的结果容器（Map<K,List<T>>）*/
+        @SuppressWarnings("unchecked")
+        Supplier<Map<K, A>> mangledFactory = (Supplier<Map<K, A>>) mapFactory;
+
+	/*如果下游特性值包含IDENTITY_FINISH*/
+        if (downstream.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)) {
+	    /*最终结果类型与组合器的结果类型一致*/
+            return new CollectorImpl<>(mangledFactory, accumulator, merger, CH_ID);
+        }
+        else {
+	    /*下游转换器*/
+            @SuppressWarnings("unchecked")
+            Function<A, A> downstreamFinisher = (Function<A, A>) downstream.finisher();
+	    /*利用下游转换器创建新的转换器*/
+            Function<Map<K, A>, M> finisher = intermediate -> {
+                intermediate.replaceAll((k, v) -> downstreamFinisher.apply(v));
+                @SuppressWarnings("unchecked")
+                M castResult = (M) intermediate;
+                return castResult;
+            };
+	    /*利用新的转换器将组合器的结果类型转换成最终结果类型*/
+            return new CollectorImpl<>(mangledFactory, accumulator, merger, finisher, CH_NOID);
+        }
+    }
+Map<City, Set<String>> namesByCity = = people.stream().collect(groupingBy(Person::getCity, TreeMap::new,
+	mapping(Person::getLastName, toSet())));
+首先根据city字段进行分组，分组后的元素应用到mapping函数，将Person对象映射到lastName字段，最后收集lastName到TreeMap集合中。
+
+default V computeIfAbsent(K key,
+            Function<? super K, ? extends V> mappingFunction) {
+        Objects.requireNonNull(mappingFunction);
+        V v;
+	/*如果集合中不存在当前key*/
+        if ((v = get(key)) == null) {
+            V newValue;
+	    /*将key应用到Function函数，如果返回结果不为空*/
+            if ((newValue = mappingFunction.apply(key)) != null) {
+		/*把key作为键，映射的结果作为值，放到集合中*/
+                put(key, newValue);
+                return newValue;// 返回映射的结果
+            }
+        }
+	/*如果集合中存在当前key，返回它映射的值*/
+        return v;
+    }
+
+public static <T>
+    Collector<T, ?, Map<Boolean, List<T>>> partitioningBy(Predicate<? super T> predicate) {
+        return partitioningBy(predicate, toList());
+    }
+public static <T, D, A>
+    Collector<T, ?, Map<Boolean, D>> partitioningBy(Predicate<? super T> predicate,
+                                                    Collector<? super T, A, D> downstream) {
+        BiConsumer<A, ? super T> downstreamAccumulator = downstream.accumulator();
+        BiConsumer<Partition<A>, T> accumulator = (result, t) ->
+                downstreamAccumulator.accept(predicate.test(t) ? result.forTrue : result.forFalse, t);
+        BinaryOperator<A> op = downstream.combiner();
+        BinaryOperator<Partition<A>> merger = (left, right) ->
+                new Partition<>(op.apply(left.forTrue, right.forTrue),
+                                op.apply(left.forFalse, right.forFalse));
+        Supplier<Partition<A>> supplier = () ->
+                new Partition<>(downstream.supplier().get(),
+                                downstream.supplier().get());
+        if (downstream.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)) {
+            return new CollectorImpl<>(supplier, accumulator, merger, CH_ID);
+        }
+        else {
+            Function<Partition<A>, Map<Boolean, D>> finisher = par ->
+                    new Partition<>(downstream.finisher().apply(par.forTrue),
+                                    downstream.finisher().apply(par.forFalse));
+            return new CollectorImpl<>(supplier, accumulator, merger, finisher, CH_NOID);
+        }
+    }
+
+
+

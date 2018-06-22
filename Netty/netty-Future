@@ -1,0 +1,5 @@
+netty-Future
+
+1.JDK提供的Future只能通过手工方式检查执行结果，而这个操作是阻塞的
+2.Netty对ChannelFuture进行了增强，通过ChannelFutureListener以回调的方式来获取执行结果，去除了手工检查阻塞的操作
+3.注意：ChannelFutureListener的operationComplete方法是由I/O线程执行的，因此要注意不要在这里执行耗时操作，可采用另外的线程或者线程池来执行。

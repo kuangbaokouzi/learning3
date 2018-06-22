@@ -1,0 +1,128 @@
+Docker组件（C/S）
+
+Docker Client: Docker客户端
+
+Docker Server: Docker daemon的主要组成部分，接收用户通过Docker Client发送的请求，并按照相应的路由规则实现路由分发。
+
+Docker镜像: Docker镜像运行之后变成容器。（docker run）
+
+Docker Registry: Registry是Docker镜像的中央存储仓库（pull/push）
+
+
+
+Docker总览
+
+Docker简介
+可以粗糙的理解为轻量级的虚拟机
+
+开挂的chroot
+
+镜像与容器
+国内镜像：docker pull daocloud.io/library/ubuntu:latest
+docker pull：拉取远程镜像
+docker run：运行本地docker镜像
+docker ps：显示当前本地运行的docker服务
+docker ps -a：显示本地运行过的所有docker服务
+
+docker run -p 8080:80 -d nginx：将nginx服务器映射到本地8080端口
+docker cp lw.html bdefd1defc3d://usr/share/nginx/html 这其中包含了docker nginx服务器静态页面的路径
+dcoker stop bdefd1defc3d 停止nginx服务，因为在容器内的操作是暂时的，lw.html不会被保存，需要通过命令设置保存
+docker commit -m 'commit lw.html' c22a6cf996a6 怎么感觉就是个git呢？！
+
+docker images 查看本地镜像
+REPOSITORY                   TAG                 IMAGE ID            CREATED             SIZE
+<none>                       <none>              1e62149fb2f8        2 minutes ago       109MB
+发现一个没有tag的image，在2分钟前被创建，也就是在使用了commit后，会创建一个新的image，那么在commit命令后面需要加上指定的tag名称。
+
+docker commit -m 'commit lw.html' c22a6cf996a6 nginx-lw
+
+REPOSITORY                   TAG                 IMAGE ID            CREATED             SIZE
+nginx-lw                     latest              15875b507dd8        6 seconds ago       109MB
+
+docker rmi：删除image
+docker rmi 1e62149fb2f8
+
+docker rm：删除多个image
+docker rm 8c3182a38db3 e903bb3be804
+
+Dockerfile：使用docker构建新的镜像
+FROM alpine:latest
+MAINTAINER kouzikaile
+CMD echo "hello world!"
+
+docker build -t hello_docker .
+
+第二个Dockerfile：
+FROM ubuntu 基础镜像
+MAINITAINER kouzikaile 维护者
+RUN apt-get-update 在容器中执行命令
+RUN apt-get-install -y nginx 在容器中执行命令
+COPY lw.html /var/www/html 拷贝文件ADD/COPY
+ENTRYPOINT ["/usr/sbin/nginx","-g","daemon off;"] 执行命令或者使用CMD
+EXPOSE 80 暴露服务器的端口
+
+WORKERDIR 指定运行命令的路径
+ENV 设置容器内部的环境变量
+USER 指定容器执行命令的用户，一般是root
+VOLUME 指定容器挂在的卷
+
+容器存储（Volume）：提供独立于容器之外的持久化存储
+docker run -d --name nginx -v /urs/share/nginx/html nginx 运行容器并将容器挂载到指定的磁盘路径
+docker inpsect nginx 检查
+
+docker exec -it nginx /bin/bash 大概就是进入nginx容器的bash命令模式
+
+docker run -v $PWD/code:/var/www/html/ nginx 本地目录挂载到容器中的数据卷，这种方法可以利用到开发环境中，将本地项目目录挂载到容器的数据卷上
+
+docker run --volumes-from
+
+docker create -v $PWD/data:/usr/share/ubuntu/data --name data_container ubuntu 创建一个容器data_container，它的内容是本地data目录的全部内容
+
+docker run -it --volumes-from data_container ubuntu /bin/bash 将data_container挂载到ubuntu中，并以交互式命令行bash的方式进入容器
+
+Registry
+术语
+host  宿主机，通常就是开发者个人电脑
+image 镜像，远程或本地可以重复使用的打包
+container 容器，镜像的运行实例
+registry 注册仓库，包含很多个镜像
+daemon 守护进程
+client 客户端，给daemon输送命令进行操作
+
+docker search whalesay 搜索仓库镜像
+docker pull whalesay 从仓库拉取镜像
+docker push myname/whalesay 推送镜像到仓库
+
+官方仓库：docerhub
+
+国内仓库：daocloud，tenxcloud，aliyun
+
+
+多容器app
+docker-compose up -d
+
+根据docker-compose.yml和各个模块配置的Dockerfile拉起app
+
+docker-compose stop 停止拉起的服务
+
+docker-compose build 中途修改项目时使用build对项目进行构建
+
+docker-compose rm 将停止掉的容器都移除
+
+常用命令：
+build 从本地创建镜像
+command 覆盖缺省命令
+depends_on 服务之间依赖关系
+posrts 暴露端口
+volumes 卷
+image pull镜像
+
+up 启动服务
+stop 关闭服务
+rm 删除服务中的各个容器
+logs 观察各个容器的日志
+ps 列出服务相关的容器
+
+实战：
+①运行一个mysql实例
+sudo docker run --name first-mysql -p 3306:3306 -e MYSQL\_ROOT\_PASSWORD=123456 -d mysql

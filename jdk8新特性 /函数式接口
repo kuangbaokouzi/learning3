@@ -1,0 +1,66 @@
+jdk8中，接口不仅仅可以定义抽象方法，还可以包含有具体实现的方法，称为默认方法；
+public interface Iterable<T> {
+	default void forEach(Consumer<? super T> action) {
+		Objects.requireNonNull(action);
+			for (T t : this) {
+			action.accept(t);
+		}
+	}
+}
+
+@FunctionalInterface
+public interface Consumer<T> {}
+
+1.@FunctionalInterface注解的接口称为函数式接口，其特点是接口中只包含一个确切的抽象方法；
+
+2.函数式接口应该只被lambda表达式、方法引用和构造方法引用创建实例；
+方法引用：list.forEach(System.out::println);
+
+3.jdk8开始，只有一个抽象方法的接口都会被加上@FunctionalInterface注解：
+@FunctionalInterface
+public interface Runnable {}
+
+4.如果只有一个方法的接口没有加上@FunctionalInterface注解，依然会被当做函数式接口；
+
+5.如果接口中声明了一个抽象方法，覆盖了Object中的方法，那么这个抽象方法不会被函数式接口计数。
+
+在将函数作为一等公民的开发语言中，lambda表达式是函数类型；而在java中，lambda表达式是对象类型。
+
+代表了一个函数，这个函数接收一个参数并返回一个结果
+
+@FunctionalInterface
+public interface Function<T, R> {}
+
+Function<String, String> function = String::toUpperCase;
+String::toUpperCase是一个实例方法，调用这个实例方法的对象就是Function的第一个泛型，而调用这个实例方法返回的结果就是Function的第二个泛型。
+
+lambda表达式是匿名函数，没有声明的方法：没有访问修饰符、返回值和方法名；lambda表达式传递的不仅仅是值，还传递行为，提升抽象层次，API重用性好，更加灵活。
+
+java中lambda表达式的语法：
+(argument) -> {body}
+
+(arg1, arg2) -> {body}
+
+(Type1 arg1, Type2 arg2) -> {body}
+
+(int a, int b) -> {return a + b;}
+
+() -> System.out.println("Hello World");
+
+(String s) -> {System.out.println(s);}
+
+() -> 42
+
+() -> {return 3.1415;}
+
+一个lambda表达式可以由零个或多个参数，参数取决与要调用的函数的参数形式，参数可以明确声明也可以不声明根据上下文进行推断。如果参数只有1个，那么圆括号是可以省略的。如果方法体只有一句话，那么花括号是可以省略的，注意，分号也一并需要省略掉。如果只有一句语句，且是返回值，那么可以进一步省略return关键字。带花括号和分号的代码段称为statement（语句），而没有花括号和分号则称为expression（表达式）。
+
+传统的方法调用是先将方法的逻辑统统定义好，然后再进行调用；而lambda表达式则不需要提前定义好具体的行为，而是定义行为的方法描述，然后通过表达式实现方法传递后，再进行具体逻辑的编写，用户可以随时随地对方法逻辑进行编写。
+
+高阶函数：如果一个函数接收一个函数作为参数，或者一个函数使用一个函数作为返回值，那么这个函数称为高级函数。
+
+    public String convert(int a, Function<Integer, String> function) {
+        return function.apply(a);
+    }
+
+这里，Function<Integer, String>是函数式接口类型作为方法convert的参数引用，convert就是一个高阶函数。

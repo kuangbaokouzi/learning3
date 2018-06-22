@@ -1,0 +1,19 @@
+AutoCloseable
+
+public class AutoCloseableTest implements AutoCloseable {
+    @Override
+    public void close() throws Exception {
+        System.out.println("close invoked!");
+    }
+
+    public void doSomething() throws Exception {
+        System.out.println("doSomething invoked!");
+    }
+
+    public static void main(String[] args) throws Exception {
+        try (AutoCloseableTest autoCloseableTest = new AutoCloseableTest()) {
+            autoCloseableTest.doSomething();
+        }
+    }
+}
+通过try-with块，自动关闭资源。

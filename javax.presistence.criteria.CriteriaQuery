@@ -1,0 +1,70 @@
+CriteriaQuery
+
+定义顶级查询的特定功能。
+
+CriteriaQuery<T> select(Selection<? extends T> selection);指定项目会以查询结果返回。注意，使用了基于字符串API的应用可能需要指定选择查询项目的类型，当从一个get或join操作返回并且查询结果类型被指定的时候。举例：
+CriteriaQuery<String> q = cb.createQuery(String.class);
+Root<Order> order = q.from(Order.class);
+q.select(order.get("shippingAddress").<String>get("state"));
+
+CriteriaQuery<Product> q2 = cb.createQuery(Product.class);
+q2.select(q2.from(Order.class)
+      .join("items")
+      .<Item,Product>join("product"));
+
+CriteriaQuery<T> multiselect(Selection<?>... selections);指定多个项目会以查询结果返回。查询执行的结果类型取决于创建的标准化查询对象以及多选方法的参数类型。多选方法的一个参数不可以是元祖或数组的符合选项。
+
+如果标准化查询的类型是CriteriaQuery<Tuple>（比如，一个被createTupleQuery方法或者通过向createQuery传递一个Tuple类型的参数创建的查询对象），一个multiselect方法的参数对应的Tuple对象，按照指定的顺序，会被初始化并且作为每一个行（行的结果来自于查询的执行）被返回。
+
+如果标准化查询的类型是CriteriaQuery<X>，作为一些用户指定的X类型（比如，通过传递了一个X类型参数的createQuery方法创建的标准化查询对象），multiselect方法的参数会被传递给X的构造器并且一个X类型的实例会作为每一行被返回。
+
+如果标准化查询的类型是CriteriaQuery<X[]>，X[]实例会作为每一行被返回。数组元素会对应multiselect方法的参数，按照指定的顺序。
+
+如果标准化查询的类型是CriteriaQuery<Object>或者如果标准化查询不带指定类型被创建，并且只有一个参数被传递给multiselect方法，Object实例会作为每一行被返回。
+
+如果标准化查询的类型是CriteriaQuery<Object>或者如果标准化查询不带指定类型被创建，并且不知一个参数被传递给multiselect方法，Object[]实例会作为每一行被返回。数组元素会对应multiselect方法的参数，按照指定的顺序。
+
+CriteriaQuery<T> where(Expression<Boolean> restriction);根据指定的布尔表达式修改查询来限制查询结果。如果存在，替换之前已经被添加的限制。这个方法仅仅是覆盖了AbstractQuery中where方法的返回结果。
+
+CriteriaQuery<T> where(Predicate... restrictions);根据指定限制谓词的连词修改查询来限制查询结果。如果存在，替换之前已经添加的限制。如果没有限制被指定，之前已经添加的限制会被简单地移除。
+
+CriteriaQuery<T> groupBy(Expression<?>... grouping);指定用于组织查询结果群组的表达式。如果存在，替换之前已经指定的群组表达式。如果没有被指定，之前已经存在的群组表达式会被简单地移除。
+
+CriteriaQuery<T> having(Expression<Boolean> restriction);指定一个在群组查询上的限制。
+
+CriteriaQuery<T> having(Predicate... restrictions);根据指定限制谓词的连词修改查询来指定在群组查询上的限制。
+
+CriteriaQuery<T> orderBy(Order... o);指定用于给查询结果排序的排序表达式。表达式从左到右排序优先级依次降低。、
+
+CriteriaQuery<T> distinct(boolean distinct);指定重复的查询结果是否会被淘汰。如果是true，淘汰重复结果；如果是false，重复结果被保留。如果没有指定，则默认为false。
+
+List<Order> getOrderList();返回优先级顺序的排序表达式。如果没有排序表达式，返回一个空列表。修改这个排序列表不会对查询造成影响。
+
+Set<ParameterExpression<?>> getParameters();返回查询参数。如果没有查询参数，返回一个空的集合。修改这个参数集合不会对查询造成影响。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

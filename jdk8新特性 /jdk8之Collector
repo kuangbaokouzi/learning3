@@ -1,0 +1,98 @@
+Collector<T,A,R>
+
+Collector是可变的汇聚操作，它将输入元素累积到一个可变的结果当中，当所有元素处理完毕后，它可以将累积之后的结果转换成一个最终的表示（可选操作）。汇聚的操作支持串行和并行两种方式。
+
+可变的汇聚操作：
+1.将元素累积到Collection中
+2.使用StringBuilder将字符串汇聚到一起
+3.计算元素的sum、max、min等
+4.根据销售商分组获得最大的销售值
+
+Collectors提供了很多常见的可变汇聚实现，比如toList、counting等。
+
+Collector本身是通过4个函数构成：
+1.创建并返回一个新的结果容器，Supplier<A>函数
+2.将新的数据元素合并到结果容器，BiConsumer<A,T>函数
+3.将两个部分结果合并到一个结果容器，BinaryOperator<A>函数
+4.将容器的累积类型转换成结果类型，Function<A, R>函数
+
+Collector拥有一个特性集合，比如Characteristics.CONCURRENT,意味着可以使用并发的方式优化收集器的处理。
+
+Collector汇聚操作的串行实现会使用Supplier产生一个单结果容器，并且每个输入函数会调用BiConsumer函数一次。并行实现会对输入进行分区，针对每个分区会创建一个结果容器，累积每个分区的内容到一个子结果中，然后通过BinaryOperator函数将这些子结果合并到一个结果中。
+
+为了确保串行和并行操作产生等价的结果，收集器函数必须满足两个条件：identity（同一性）和association（结合性）。
+
+同一性：将部分结果与空元素合并应该与之前的部分结果保持一致。a == combiner.apply(a, supplier.get())
+结合性：
+A a1 = supplier.get();
+accumulator.accept(a1, t1);
+accumulator.accept(a1, t2);
+R r1 = finisher.apply(a1);  // result without splitting
+
+A a2 = supplier.get();
+accumulator.accept(a2, t1);
+A a3 = supplier.get();
+accumulator.accept(a3, t2);
+R r2 = finisher.apply(combiner.apply(a2, a3));  // result with splitting
+
+基于Collector的汇聚操作的API，比如Stream.collect(Collector)，必须遵守以下约束：
+1.传递给accumulator函数的第一个参数，combiner函数的两个参数，以及finisher函数的参数必须是supplier、accumulator或者combiner函数的上一次调用的结果。
+Collector<T,A,R>
+T：流中每个元素的类型
+A：汇聚操作的累积类型（中间操作结果的类型，比如集合）
+R：汇聚操作的结果类型
+
+2.supplier、accumulator或者combiner只能传递给下一次操作的supplier、accumulator或者combiner，而不能被其它操作处理。
+
+3.
+4.
+5.
+6.
+7.
+
+Collector汇聚操作的流程：
+R container = collector.supplier().get();// 创建并获得结果容器
+
+/*遍历元素，将每个元素都应用到结果容器中*/
+for (T t : data)
+ collector.accumulator().accept(container, t);
+
+return collector.finisher().apply(container);// 将结果容器应用到最终的转换器中，产生最终的结果
+
+Collector可以进行组合：
+/*对员工进行工资求和*/
+Collector<Employee, ?, Integer> summingSalaries
+         = Collectors.summingInt(Employee::getSalary));
+/*对员工再进行部门分组*/
+Collector<Employee, ?, Map<Department, Integer>> summingSalariesByDept
+         = Collectors.groupingBy(Employee::getDepartment, summingSalaries);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,550 @@
+java中可伸缩的IO（Scalable IO in java）
+
+1.大纲（outline）
+①可伸缩的网络服务
+
+②事件驱动执行
+
+③Ractor模式
+	-基础版本
+	-多线程版本
+	-其它变种
+
+④java.nio非阻塞IO APIS演练
+
+2.网络服务（network services）
+①web服务，分布式对象等
+
+②大多数都拥有同样的基础结构
+	-读请求
+	-解码请求
+	-执行服务
+	-编码请求
+	-发送回复
+
+③但是每一步的性质和成本都不一样
+	-XML解析
+	-文件传输
+	-web页面生成
+	-计算性的服务
+
+3.经典的服务设计（classic service designs）
+客户端1		客户端2		客户端3
+》》》          》》》           》》》
+
+	  》》》服务端》》》
+
+处理器1		处理器2		处理器3
+》》》           》》》          》》》
+读、解码、计算   读、解码、计算  读、解码、计算
+编码、发送       编码、发送      编码、发送
+
+每一个处理器都在自己的线程中启动。
+
+4.经典的ServerSocket循环
+// 服务器线程
+class Server implements Runnable {
+	public void run() {
+		try {
+			// 创建服务器套接字，绑定端口
+			ServerSocket ss = new ServerSocket(PORT);
+			// 当前线程不中断，就持续进行监听操作
+			while (!Thread.interrupted())
+				// 创建并启动处理器线程
+				// accept方法是阻塞的
+				// 处理器接收连接成功的socket对象
+				new Thread(new Handler(ss.accept())).start();
+			// or, single-threaded, or a thread pool
+		} catch (IOException ex) { /* ... */ }
+	}
+	// 静态内部类，处理器类
+	static class Handler implements Runnable {
+		final Socket socket;
+		Handler(Socket s) { socket = s; }
+		public void run() {
+			try {
+				// 创建输入缓冲数组
+				byte[] input = new byte[MAX_INPUT];
+				// 读取当前客户端发送给服务器的消息
+				socket.getInputStream().read(input);
+				// 处理输入消息，返回输出消息
+				byte[] output = process(input);
+				// 服务器向客户端发送消息
+				socket.getOutputStream().write(output);
+			} catch (IOException ex) { /* ... */ }
+		}
+		private byte[] process(byte[] cmd) { /* ... */ }
+	}
+}
+
+5.可伸缩性的目标
+①在增加负载的情况下优雅降级（更多的额客户端）
+②在增加系统资源的过程中持续改善（CPU/内存/磁盘/带宽）
+③同时满足可用性和性能目标
+	-更短的潜伏期
+	-满足高峰需求
+	-可调服务质量
+④分而治之通常是实现任何一个可伸缩性目标的最佳途径
+
+6.分而治之
+①将处理分解成小任务
+	-每一个小任务进行非阻塞处理动作
+②当小任务可用，马上执行它
+	-在这里，一个IO事件通常安排为一个触发器
+处理器
+读》》》解码》》》计算》》》编码》》》发送
+
+③java.nio支持的基本机制
+	-非阻塞式的读写操作
+	-基于IO事件进行任务分发
+
+④变化可能性非常多
+	-一系列的事件驱动设计
+
+7.事件驱动设计
+①通常更高效
+	-更少的资源
+		-通常不需要为每个客户端创建一个线程
+
+	-更少的开销
+		-更少的线程上下文切换，更少的死锁
+	-但是转发会变慢
+		-必须讲绑定行为设计成事件
+
+②通常更难编程
+	-必须分解成简单的非阻塞动作
+		-类似GUI的事件动作
+		-不能排除所有的阻塞（GC等）
+	-必须跟踪服务的逻辑状态
+
+8.AWT中的事件
+点击》》》
+
+事件队列
+事件1》》》		事件2》》》		事件3》》》
+
+按钮
+监听1》》》		监听2》》》		监听3》》》
+
+事件驱动的IO运用了相似的思想，不过采取了不同的设计
+
+9.Reactor（反应器）模式
+①Reactor通过转发合适处理器对IO事件进行响应
+	-类似于AWT线程
+
+②处理器执行非阻塞动作
+	-类似于AWT的ActionListener
+
+③通过绑定处理器到事件上进行管理
+	-类似于AWT的addActionListener
+
+10.基本的Reactor设计
+客户端1》》》		客户端2》》》	客户端3》》》
+
+		》》》Reactor》》》
+		 《《《分发》》》
+接收器（acceptor）                  处理器1		处理器2			处理器3...
+				   读、解码、计算        读、解码、计算		读、解码、计算
+				   编码、发送		编码、发送		编码、发送
+
+以上是单线程场合。
+
+11.java.nio支持
+①通道（Channel）
+	-连接文件、socket等，支持非阻塞读
+
+②缓冲（Buffer）
+	-类数组的对象，能够直接操作通道的读写
+
+③选择器（Selector）
+	-分辨某个通道集合存在IO事件
+
+④选择键（SelectionKey）
+	-保持IO事件状态和绑定（注册到Selector中的相关信息）
+
+12.Reactor实现
+①Reactor设置（Reactor Setup）
+class Reactor implements Runnable {
+	final Selector selector;
+	final ServerSocketChannel serverSocket;
+	Reactor(int port) throws IOException {
+		// 创建选择器
+		selector = Selector.open();
+		// 创建服务器socket通道
+		serverSocket = ServerSocketChannel.open();
+		// 服务器socket绑定端口
+		serverSocket.socket().bind(new InetSocketAddress(port));
+		// 设置服务器socket通道非阻塞
+		serverSocket.configureBlocking(false);
+		// 注册服务器socket通道到指定的选择器中，并指定当前通道状态为接收
+		SelectionKey sk =serverSocket.register(selector,SelectionKey.OP_ACCEPT);
+		// 在当前选择键附着一个新的接收器
+		sk.attach(new Acceptor());
+	}
+	/*
+	Alternatively, use explicit SPI provider:
+	SelectorProvider p = SelectorProvider.provider();
+	selector = p.openSelector();
+	serverSocket = p.openServerSocketChannel();
+	*/
+	
+②转发循环（Dispatch Loop）
+	public void run() { // normally in a new Thread
+		try {
+			// 服务器线程，当前线程不中断，持续选择通道选择键集合
+			while (!Thread.interrupted()) {
+				// 选择准备进行IO操作的通道对应的选择键集合
+				// 这个方法是阻塞的，直到某个通道被选择到
+				selector.select();
+				// 获得被选择到的选择键集合
+				Set selected = selector.selectedKeys();
+				Iterator it = selected.iterator();
+				// 遍历集合，分发选择键
+				while (it.hasNext())
+					dispatch((SelectionKey)(it.next());
+				// 每次使用完选择键集合，必须清空，以便后续通道状态保持
+				selected.clear();
+			}
+			h (IOException ex) { /* ... */ }
+		}
+		void dispatch(SelectionKey k) {
+			// 恢复最近通过attach操作附着的接收器
+			Runnable r = (Runnable)(k.attachment());
+			// 执行接收器的run方法
+			if (r != null)
+				r.run();
+		}
+
+③接收器（Acceptor）
+	class Acceptor implements Runnable { // inner
+		public void run() {
+			try {
+				// 接收器线程执行服务器通道的accept方法，返回客户端socket通道
+				// 如果当前通道是非阻塞的，那么这个方法调用会立即返回
+				// 否则，它会一直等待新的可用连接或者IO处理错误才会返回
+				SocketChannel c = serverSocket.accept();
+				// 如果连接存在，创建新的处理器，并指定选择器和socket通道
+				if (c != null)
+					new Handler(selector, c);
+			}
+			catch(IOException ex) { /* ... */ }
+		}
+	}
+}
+
+④处理器设置（Handler Setup）
+final class Handler implements Runnable {
+	final SocketChannel socket;
+	final SelectionKey sk;
+	ByteBuffer input = ByteBuffer.allocate(MAXIN);
+	ByteBuffer output = ByteBuffer.allocate(MAXOUT);
+	static final int READING = 0, SENDING = 1;
+	int state = READING;
+	Handler(Selector sel, SocketChannel c) throws IOException {
+		// 初始化socket通道					
+		socket = c; 
+		// 设置socket通道非阻塞
+		c.configureBlocking(false);
+		// Optionally try first read now
+		// 将socket通道注册到选择器中，设置当前通道状态为缺省的
+		// 返回当前通道对应的选择键
+		sk = socket.register(sel, 0);
+		// 讲当前handler对象附着到选择键
+		sk.attach(this);
+		// 重新设置当前通道的状态为读
+		sk.interestOps(SelectionKey.OP_READ);
+		// 唤醒一个阻塞的select()操作，并理解返回
+		sel.wakeup();
+	}
+	boolean inputIsComplete() { /* ... */ }
+	boolean outputIsComplete() { /* ... */ }
+	void process() { /* ... */ }
+
+⑤Reactor处理（Reactor Handling）
+	public void run() {
+		try {
+			// 如果当前状态是读，调用读方法
+			if(state == READING) read();
+			// 如果当前状态是写，调用写方法
+			else if (state == SENDING) send();
+		} catch (IOException ex) { /* ... */ }
+	}
+	void read() throws IOException {
+		// 将客户端发送的信息读到input ByteBuffer中	
+		socket.read(input);
+		// 如果读操作完毕，执行处理方法，并将当前状态修改为发送
+		if (inputIsComplete()) {
+			process();
+			state = SENDING;
+			// Normally also do first write now
+			sk.interestOps(SelectionKey.OP_WRITE);
+		}
+	}
+	void send() throws IOException {
+		// 将服务器发送的信息写到output ByteBuffer中，并响应给客户端
+		socket.write(output);
+		// 如果写操作完毕，讲当前socket通道对应的SelectionKey从选择键集合中移除
+		if (outputIsComplete()) sk.cancel();
+	}
+}
+
+
+每个状态的处理器
+	-GoF状态对象模式的一个简单应用
+	-重复绑定合适的处理器作为附件
+class Handler{ // ...
+	public void run() { // initial state is reader
+		// 读取客户端的信息到input ByteBuffer中			
+		socket.read(input);
+		// 如果读操作执行完毕，调用process操作
+		if (inputIsComplete()) {
+			process();
+			// 创建一个新的发送器到当前通道的SelectionKey中
+			sk.attach(new Sender());
+			// 设置当前通道状态为发送
+			sk.interest(SelectionKey.OP_WRITE);
+			// 唤醒操作
+			sk.selector().wakeup();
+		}
+	}
+	class Sender implements Runnable {
+		public void run(){ // ...
+			// 发送器讲服务器信息写到output ByteBuffer中，并响应给客户端
+			socket.write(output);
+			// 如果写操作执行完毕，移除当前通道对应的SelectionKey
+			if (outputIsComplete()) sk.cancel();
+		}
+	}
+}
+
+13.多线程设计
+①战略性为实现可伸缩性增加线程
+	-主要适用于多处理器
+
+②工人线程（Worker Threads）
+	-Reactor必须快速地触发处理器
+		-处理器的执行降低Reactor的性能
+	
+	-卸载非IO操作到其它线程
+
+	-多个Reactor线程
+		-Reactor线程可以专门处理IO
+		-分布负载到其它Reactor
+			-负载平衡CPU和IO的匹配速度
+	
+14.工人线程（Worker Threads）
+①卸载非IO操作到其它线程，加快Reactor线程
+	-类似于POSA2的Proactor设计
+
+②比重复计算绑处理到事件驱动更简单的形式
+	-应该保持纯粹的非阻塞计算
+		-过多的处理会增大开销
+
+③不过难以重叠IO处理
+	-当第一次读取所有输入到一个buffer中时最合适
+
+④使用线程池来调度和控制
+	-通常客户端需要很多线程
+
+15.工人线程池（Worker Thread Pools）
+客户端1》》》		客户端2》》》		客户端3》》》
+
+		    》》》Reactor》》》
+		  《《《分发Dispatch》》》
+接收器（Acceptor）			   	《《《线程池（工人线程）》》》
+					读线程1》》》	解码-计算-编码》》》		写线程1》》》		
+					读线程2》》》	解码-计算-编码》》》		写线程2》》》
+					读线程3》》》	解码-计算-编码（队列任务）	写线程3》》》
+
+16.基于线程池的处理器（Handler With Thread Pool）
+class Handler implements Runnable {
+	// uses util.concurrent thread pool
+	// 初始化线程池执行器
+	static PooledExecutor pool = new PooledExecutor(...);
+	static final int PROCESSING = 3;
+	// 同步读操作
+	synchronized void read() { // ...
+		// 当前通道读信息到input ByteBuffer中
+		socket.read(input);
+		// 读操作执行完毕
+		if (inputIsComplete()) {
+			// 状态修改为执行中
+			state = PROCESSING;
+			// 线程池执行一个新的处理器线程
+			pool.execute(new Processer());
+		}
+	}
+	// 同步执行处理并切换任务操作
+	synchronized void processAndHandOff() {
+		// 执行当前任务操作
+		process();
+		// 状态修改为发送
+		// 或者重新绑定附件
+		state = SENDING; // or rebind attachment
+		sk.interest(SelectionKey.OP_WRITE);
+	}
+	class Processer implements Runnable {
+		// 处理器线程
+		public void run() { 
+			// 执行处理并切换任务
+			processAndHandOff(); 
+		}
+	}
+}
+
+17.协调任务（Coordinating Tasks）
+①切换（Handoffs）
+	-每任务一个肯能触发、调用下一个任务
+	-通常最快但是容易冲突
+
+②回调每次处理器分发（Callbacks）
+	-设置状态，附件等
+	-GoF调解模式的变种
+
+③队列（Queues）
+	-比如，沿着工序传递缓冲
+
+④未来（Futures）
+	-当每个任务产生一个结果
+	-协调线程加入或等待/唤醒的顶层
+
+18.使用PooledExcutor
+①一个可调度的工人线程池
+
+②主方法：execute(Runnable r)
+
+③控制以下属性：
+	-任务队列的种类（任意一个通道）
+	-最大线程数
+	-最小线程数
+	-温和的按需线程
+	-保持活动状态，直到空闲线程销毁
+		-延迟被替换为一个新的线程，如果有必要
+	-饱和策略
+		-阻塞，丢弃，生产运行等
+
+19.多个Reactor线程（Multiple Reactor Threads）
+①使用Reactor线程池
+	-用于匹配CPU和IO的速度
+	-静态或者动态结构
+		-每个都拥有自己的选择器，线程，分发循环
+	-主接收器分发其它的reactors
+// 选择器组
+Selector[] selectors; // also create threads
+int next = 0;
+class Acceptor { // ...
+	public synchronized void run() { ...
+		// 建立连接，返回socket通道
+		Socket connection = serverSocket.accept();
+		// 如果连接正常
+		if (connection != null)
+			// 创建新的处理器，并指定一个选择器和socket通道
+			new Handler(selectors[next], connection);
+		// 如果选择器指定到末尾，重置到选择器组头部
+		if (++next == selectors.length) next = 0;
+	}
+}
+
+20.使用多个Reactors
+客户端1》》》		客户端2》》》		客户端3》》》
+
+			主Reactor接收转发》》》
+						接收器（Acceptor）》》》
+			从Reactor分发处理器》》》
+						线程池（工人线程）
+					读线程1》》》	解码-计算-编码》》》		写线程1》》》		
+					读线程2》》》	解码-计算-编码》》》		写线程2》》》
+					读线程3》》》	解码-计算-编码（队列任务）	写线程3》》》
+
+21.使用其它java.nio分支
+①每个Reactor多个选择器
+	-为不同的IO事件绑定不同的处理器
+	-可能需要仔细的同步协调
+
+②文件传输
+	-自动地文件-网络或者网络-文件拷贝
+
+③内存映射文件
+	-通过缓冲访问文件
+
+④直接缓冲
+	-有时候可以使用零拷贝传输
+	-但由安装和销毁的开销
+	-对长连接应用是最好的
+
+22.基于连接的扩展
+①取代一个单独的服务请求
+	-客户端连接
+	-客户端发送一系列的消息或请求
+	-客户端断开连接
+
+②实例
+	-数据库和事物监视器
+	-多参与者游戏或聊天等
+
+③可以继承基本的网络服务模式
+	-处理很多相关长连接客户端
+	-跟踪客户端和回话状态（包括丢弃的）
+	-通过多主机分发服务
+
+23.API演示
+Buffer
+ByteBuffer
+(CharBuffer, LongBuffer, etc not shown.)
+Channel
+SelectableChannel
+SocketChannel
+ServerSocketChannel
+FileChannel
+Selector
+SelectionKey
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

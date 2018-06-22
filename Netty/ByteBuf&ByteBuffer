@@ -1,0 +1,48 @@
+Netty ByteBuf
+
+Heap Buffer(堆缓冲区): 这是最常用的类型，ByteBuf将数据存储到JVM的堆空间中，并且将实际的数据存放到byte array中（它依然在堆中）。
+优点：由于数据存储在JVM堆中，可以快速创建和快速释放，并且它提供了直接访问内部字节数组的方法。
+缺点：每次读写数据时，都需要先将数据复制到直接缓冲区中进行网络传输。
+
+Direct Buffer(直接缓冲区): 在堆外直接分配内存空间（操作系统在本地内存进行数据分配），直接缓冲区并不会占用JVM堆的内存空间。
+优点：在使用Socket进行数据传输是，性能非常好；因为数据直接位于操作系统的本地内存中，所以不需要从JVM将数据复制到直接缓冲区中，性能很好。
+缺点：因为Direct Buffer是直接在操作系统内存中，所以内存空间的分配与释放要比堆空间更加复杂，而且速度要慢一些。另外，直接缓冲区不支持字节数组形式的直接访问。
+
+Netty通过提供内存池来解决Direct Buffer的不足之处。
+
+重点：对于后端业务消息的编解码来说，推荐使用HeapByteBuf；对于I/O通信线程在读写缓冲区时，推荐使用DirectByteBuf。
+
+Composite Buffer(混合缓冲区): 对HeapByteBuf和DirectByteBuf的融合，当希望对它们采用一致性操作的时候，可以采取混合缓冲区的方式。
+
+JDK ByteBuffer & Netty ByteBuf comparation
+
+JDK的ByteBuffer的缺点：
+
+1.JDK的ByteBuffer底层数组final byte[] hb，容量不可变，在存储容量较大的字节数组的时候，容易出现IndexOutOfBoundsException。想要实现扩容或收缩，需要开发者自行提供操作。也就是说，需要创建新的ByteBuffer对象，将原有的ByteBuffer中的内容复制到新的ByteBuffer对象中。
+2.ByteBuffer只使用一个position指针标识位置信息，在进行读写切换时需要调用flip方法或是rewind方法，使用起来很不方便。
+
+Netty的ByteBuf的优点：
+1.Netty的ByteBuf采用了读写索引分离的策略（readerIndex与writerIndex），一个初始化的ByteBuf（没有数据）的readerIndex和writerIndex的值为零。
+2.当readerIndex和writerIndex处于同一位置时，如果继续读取，那么就会抛出IndexOutOfBoundsException。
+3.对于ByteBuf的任何读写操作都会分别单独维护读索引与写索引。
+4.存储字节的数组是动态的，其最大值默认是Integer.MAX_VALUE，这里的动态性是体现在write方法中的，Write方法在执行时会判断ByteBuf容量，然后进行自动扩容操作。
+5.ByteBuf的读写操作依赖读写索引，它们是分开的，操作方便。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

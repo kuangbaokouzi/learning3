@@ -1,0 +1,162 @@
+自定义Collector
+
+enum Characteristics {
+
+	// 标识收集器是并发的，意思是同一个结果容器可以支持并发的方式调用累加器（在多线程场合）
+	// 如果并发的收集器不是无序的，它仅仅只能被并发地应用在一个无序的数据源上
+	CONCURRENT,
+
+	// 标识收集操作不承诺保留输入元素的顺序。如果结果容器没有顺序（Set），它就是true
+	UNORDERED,
+
+	
+	// 标识finisher函数就是同一性函数，如果设置了，从A（中间容器类型）到R（最终结果类型）的未检查类型转换必须成功。
+	IDENTITY_FINISH
+}
+
+
+public class MySetCollector<T> implements Collector<T, Set<T>, Set<T>> {
+
+    @Override
+    public Supplier<Set<T>> supplier() {
+        System.out.println("supplier invoked!");
+        return HashSet<T>::new;
+    }
+
+    @Override
+    public BiConsumer<Set<T>, T> accumulator() {
+        System.out.println("accumulator invoked!");
+//        return Set<T>::add;
+        return (set, item) -> set.add(item);
+    }
+
+    @Override
+    public BinaryOperator<Set<T>> combiner() {
+        System.out.println("combiner invoked!");
+        return (left, right) -> {
+            left.addAll(right);
+            return left;
+        };
+    }
+
+    @Override
+    public Function<Set<T>, Set<T>> finisher() {
+        System.out.println("finisher invoked!");
+//        return Function.identity();
+        return x -> x;
+    }
+
+    @Override
+    public Set<Characteristics> characteristics() {
+        System.out.println("characteristics invoked!");
+        return Collections.unmodifiableSet(EnumSet.of(IDENTITY_FINISH, UNORDERED));
+    }
+
+    public static void main(String[] args) {
+        List<String> list = Arrays.asList("hello", "world", "welcome", "hello");
+        Set<String> set = list.stream().collect(new MySetCollector<>());
+        System.out.println(set);
+    }
+}
+result:
+supplier invoked!
+accumulator invoked!
+combiner invoked!
+characteristics invoked!
+characteristics invoked!
+[world, hello, welcome]
+
+
+
+
+collect方法的实现（位于ReferencePipeline类中）：
+public final <R, A> R collect(Collector<? super P_OUT, A, R> collector) {
+        A container;
+        if (isParallel()
+                && (collector.characteristics().contains(Collector.Characteristics.CONCURRENT))
+                && (!isOrdered() || collector.characteristics().contains(Collector.Characteristics.UNORDERED))) {
+            container = collector.supplier().get();
+            BiConsumer<A, ? super P_OUT> accumulator = collector.accumulator();
+            forEach(u -> accumulator.accept(container, u));
+        }
+        else {
+            container = evaluate(ReduceOps.makeRef(collector));
+        }
+	// 调用characteristics方法
+        return collector.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)
+               ? (R) container
+               : collector.finisher().apply(container);
+    }
+
+这里用到的是串行流，分析container = evaluate(ReduceOps.makeRef(collector));
+
+ReduceOps.makeRef(collector):
+public static <T, I> TerminalOp<T, I>
+    makeRef(Collector<? super T, I, ?> collector) {
+        Supplier<I> supplier = Objects.requireNonNull(collector).supplier();// 调用supplier方法
+        BiConsumer<I, ? super T> accumulator = collector.accumulator();// 调用accumulator方法
+        BinaryOperator<I> combiner = collector.combiner();// 调用combiner方法
+        class ReducingSink extends Box<I>
+                implements AccumulatingSink<T, I, ReducingSink> {
+            @Override
+            public void begin(long size) {
+                state = supplier.get();
+            }
+
+            @Override
+            public void accept(T t) {
+                accumulator.accept(state, t);
+            }
+
+            @Override
+            public void combine(ReducingSink other) {
+                state = combiner.apply(state, other.state);
+            }
+        }
+        return new ReduceOp<T, I, ReducingSink>(StreamShape.REFERENCE) {
+            @Override
+            public ReducingSink makeSink() {
+                return new ReducingSink();
+            }
+
+            @Override
+            public int getOpFlags() {
+		// 调用characteristics方法
+                return collector.characteristics().contains(Collector.Characteristics.UNORDERED)
+                       ? StreamOpFlag.NOT_ORDERED
+                       : 0;
+            }
+        };
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

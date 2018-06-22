@@ -1,0 +1,20 @@
+netty中发送消息的方式有两种：
+
+1.直接写到Channel中，这种方式消息从ChannelPipeline的末尾开始流动，依次经过各个ChannelOutboundHandler
+
+2.写到与ChannelHandler关联的ChannelHandlerContext中，这种方式消息从ChannelPipeline的当前Handler的下一个ChannelHandler开始流动，依次经过剩下的Handler
+
+第一种方式消息要流经所有的handler，而第二种方式消息则流经更少的handler；结合业务需求，选择合适的处理方式。
+
+结论：
+
+1.ChannelHandlerContext与ChannelHandler之间的绑定关系是永远都不会改变的，因此对其进行缓存是没有任何问题的。
+
+2.对于与Channel同名的方法，ChannelHandlerContext的方法将会产生更短的事件流，所以应该尽可能利用这个特点提高应用性能。
+
+
+场景：C >>> S1 >>> S2，Client发送消息给Server1，Server1将消息转发给Server2的最佳实现是：让Server1的EventLoopGroup同时作为Server1接收消息的角色，又作为发送消息给Server2的客户端的角色。
+@Override
+public void channelActive(ChannelHandlerContext ctx) throws Exception {
+	BootStrap boot
+}

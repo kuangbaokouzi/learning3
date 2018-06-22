@@ -1,0 +1,16 @@
+我尝试用grpc客户端链接服务器，得到下列错误
+
+RPC failed: Status{code=INTERNAL, description=Thrown from 
+handleResolvedAddresses(): java.lang.IllegalArgumentException: 
+gracefulShutdownTimeoutMillis: -1 (expected: >= 0), 
+cause=java.lang.IllegalArgumentException: 
+gracefulShutdownTimeoutMillis: -1 (expected: >= 0)
+
+修改gradle的，build.gradle文件的netty版本为netty v4.1.16.Final后完美解决，我是用的是grpc1.8对应的netty版本就是4.1.6
+
+grpc的版本与netty的对应关系如下:
+For example: https://search.maven.org/remotecontent?filepath=io/grpc/grpc-netty/1.8.0/grpc-netty-1.8.0.pom grpc v1.8.0 should depend on netty v4.1.16.Final
+
+https://search.maven.org/remotecontent?filepath=io/grpc/grpc-netty/1.7.0/grpc-netty-1.7.0.pom grpc v1.7.0 should depend on netty v4.1.16.Final
+
+https://search.maven.org/remotecontent?filepath=io/grpc/grpc-netty/1.6.1/grpc-netty-1.6.1.pom grpc v1.6.1 should depend on netty v4.1.14.Final

@@ -1,0 +1,9 @@
+netty中的设计模式
+
+1.netty框架整体设计采用了Reactor Pattern响应器模式
+
+2.netty的回调机制采用了观察者模式
+
+3.netty中的ChannelInboundHandler的channelRead方法采用了模板方法模式
+
+4.netty中的ChannelHandlerAdapter采用了适配器模式

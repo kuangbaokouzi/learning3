@@ -1,0 +1,36 @@
+方法引用：method reference
+
+方法引用实际上是Lambda表达式的语法糖。语法糖：额外添加的语法替换本地语法，但不会影响本地语言的语法功能，能够增加程序的可读性，从而减少程序代码出错的机会。
+
+list.forEach(item -> System.out.print(item));// lambda表达式
+list.forEach(System.out::println);// 方法引用
+
+可以将方法引用看作是一个【函数指针】，function pointer。
+
+NOTE：方法引用与方法调用是两种没有任何关联的语法。
+
+方法引用共分为4类：
+
+1.类名::静态方法名：
+list.sort((o1, o2) -> Student.compareStudentByScore(o1, o2));// lambda表达式
+list.sort(Student::compareStudentByScore);// 方法引用
+
+这里使用方法引用有个前提，就是在lambda表达式中所调用的方法刚好与某个静态方法签名一致。
+
+2.引用名::实例方法名：
+StudentComparator studentComparator = new StudentComparator();
+list.sort((o1, o2) -> studentComparator.compareByName(o1, o2));// lambda表达式
+
+list.sort(studentComparator::compareByScore);// 方法引用
+
+类似1，使用方法引用需要在StudentComparator类中事先定义好成员方法。
+
+3.类名::实例方法名：
+list.sort(((o1, o2) -> o1.compareByScore(o2)));
+list.sort(Student::compareByScore);
+
+这里o1作为调用的对象，o2作为比较方法的参数，同样，这种方法也必须事先定义好。
+
+4.类名::new，构造方法引用
+System.out.println(demo.getString(String::new));
+System.out.println(demo.getString("hello", String::new));

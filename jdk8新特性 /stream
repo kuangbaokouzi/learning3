@@ -1,0 +1,90 @@
+Stream流的感觉类似于管道，它将多个操作串联起来。
+
+java.util.Collection中的默认方法stream()和parallelStream()
+
+default Stream<E> stream() {
+	return StreamSupport.stream(spliterator(), false);
+}
+
+返回一个串行流，并将集合作为流的源，它是单线程下的流。
+
+default Stream<E> parallelStream() {
+        return StreamSupport.stream(spliterator(), true);
+}
+
+返回一个并行流，并将集合作为流的源，他是多线程下的流。
+
+1.流的结构：源，零个或多个中间操作，终止操作。
+
+2.流操作分类
+惰性求值：stream.xxx().yyy().zzz().count();中xxx().yyy().zzz()是惰性求值，惰性求值是零个或多个
+
+及早求值：stream.xxx().yyy().zzz().count();中count()是及早求值，及早求值只有一个
+
+IntStream.rangeClosed(1, 100).map(i -> 2 * i).reduce(0, Integer::sum)
+
+源：IntStream.rangeClosed(1, 100)
+中间操作：map(i -> 2 * i)惰性求值
+终止操作：reduce(0, Integer::sum)及早求值
+
+3.Collection提供了新的stream()方法
+
+4.流不存储值，通过管道方式获取值
+
+5.本质是函数式的，对流的操作会生成一个结果，不过并不会修改底层数据源，集合可以作为流的底层数据源
+
+6.延迟查找，很多流操作（过滤，映射，排序等）都可以实现延迟查找
+
+7.中间操作必须遇到终止操作才会执行！！！！
+
+8.和迭代器不同的是，Stream可以并行化操作，迭代器只能命令式地串行化操作
+
+9.当使用串行方式遍历时，每个item读完后再读下一个item
+
+10.使用并行方式遍历，数据会被分为多个段，其中每个段都在不同的线程中处理，然后将结果一并输出
+
+11.Stream的并行操作依赖于Java7中引入的Fork/Join框架
+
+12.Stream无法重复消费
+
+13.Stream操作类型
+
+①Intermediate：一个流后面可以跟随零个或多个intermediate操作。其目的主要是打开流，做出某种程度的数据映射/过滤，然后返回一个新的流，交给下一个操作使用，这类操作都是延迟的（lazy），就是说，仅仅调用到这类方法，并没有真正开始流的遍历。
+
+②Terminal：一个流只能由一个terminal操作，当这个操作执行后，流就被使用“光”了，无法再被操作。所有这必定是流的最后一个操作。Terminal操作执行时，才会真正开始流的遍历，并且会生成一个结果。
+
+14.Stream分组分区操作
+collect(Collectors.groupingBy(Student::getName));
+
+collect(Collectors.groupingBy(Student::getName,Collectors.counting()));
+
+collect(Collectors.groupingBy(Student::getName,Collectors.averagingDouble(Student::getScore)));
+
+collect(Collectors.partitioningBy(student -> student.getScore() >= 80));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

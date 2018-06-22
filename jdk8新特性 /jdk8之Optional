@@ -1,0 +1,75 @@
+Optional
+
+public final class Optional<T>：容器对象，可能包含也可能不包含一个非空值。如果容器中包含一个值，那么isPresent方法返回true，get方法返回这个值。
+
+public static <T> Optional<T> of(T value) {
+        return new Optional<>(value);
+    }
+Optional类静态方法：根据指定的非空值，返回一个Optional容器对象。
+Optional<String> optional = Optional.of("hello");
+
+ public boolean isPresent() {
+        return value != null;
+    }
+Optional类成员方法：如果Optional容器对象中的值不为空，返回true。
+
+ public T get() {
+        if (value == null) {
+            throw new NoSuchElementException("No value present");
+        }
+        return value;
+    }
+Optional类成员方法：如果Optional容器对象中的值不为空，返回这个值，否则抛出当前没有值的异常。
+ if(optional.isPresent()){
+            System.out.println(optional.get());
+        }
+		
+		
+public void ifPresent(Consumer<? super T> consumer) {
+        if (value != null)
+            consumer.accept(value);
+    }
+Optional类成员方法：函数式编程方式。
+optional.ifPresent(System.out::println);
+
+public T orElse(T other) {
+        return value != null ? value : other;
+    }
+Optional类成员方法：Optional容器对象中存在值，则返回它，如果不存在，则返回参数other。
+System.out.println(optional.orElse("world"));
+
+public T orElseGet(Supplier<? extends T> other) {
+        return value != null ? value : other.get();
+    }
+Optional类成员方法：函数式编程方式的orElse。
+System.out.println(optional.orElseGet(() -> "welcome"));
+
+ public<U> Optional<U> map(Function<? super T, ? extends U> mapper) {
+        Objects.requireNonNull(mapper);
+        if (!isPresent())
+            return empty();
+        else {
+            return Optional.ofNullable(mapper.apply(value));
+        }
+    }
+Optional类成员方法：参数为一个Function实例，返回值为一个Optional容器对象，旨在将一个Function实例映射为一个Optional实例，便于进行Optional的函数式编程。
+Optional<Company> optionalCompany = Optional.of(company);
+System.out.println(optionalCompany.map(com -> com.getEmps()).orElse(Collections.emptyList()));
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
