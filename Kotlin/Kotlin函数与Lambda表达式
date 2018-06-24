@@ -1,0 +1,74 @@
+Kotlin函数与Lambda表达式
+
+默认参数（default arguments）
+对于重写方法，子类拥有的重写方法会使用与父类相同的默认参数值；
+在重写一个拥有默认参数值的方法时，方法签名中必须要将默认值省略掉；
+如果一个默认参数位于其它默认参数前面，那么默认值只能通过在调用函数时使用具名参数的方式来使用。
+fun test(a: Int = 0, b: Int = 1) = println(a - b)
+
+fun test2(a: Int = 0, b: Int) = println(a - b)
+
+fun test3(a: Int = 0, b: Int, compute: (x: Int, y: Int) -> Unit) {
+    compute(a, b)
+}
+
+fun test4(vararg strings: String) {// 可变参数定义
+    println(strings.javaClass)
+    strings.forEach { println(it) }
+}
+
+
+open class A {
+    open fun method(a: Int, b: Int = 4) = a + b
+}
+
+class B : A() {
+    override fun method(a: Int, b: Int) = a + b
+}
+
+fun main(args: Array<String>) {
+    test()
+    test(2)
+    test(2, 3)
+    test(b = 2)
+
+    println(B().method(1))
+
+    test2(b = 2) // 具名参数（named argument）
+
+    test3(2, 3, ::test)
+
+    test3(2, 3) { a, b -> println(a - b) }
+
+    test4("hello", "world", "welcome", "hello world")
+
+    /*可变参数可以借助于spread operator（分散运算符）以具名参数的形式传递*/
+    test4(strings = *arrayOf("hello", "world", "welcome", "hello world"))
+}
+
+/**
+ * 这个类型只有一个值就是Unit。 这个类型对应java中的void。在方法中可以省略不写。
+ */
+public object Unit {
+    override fun toString() = "kotlin.Unit"
+}
+
+fun myPrint(name: String): Unit {
+    println(name)
+    return Unit
+}
+
+fun myPrint(name: String) {
+    println(name)
+}
+
+/*单表达式，函数的返回类型如果可以通过类型推断判断出来，那么返回类型可以省略掉*/
+fun add(a: Int, b: Int) = a + b
+
+/*拥有方法体的函数必须显式指定返回类型，除非函数返回Unit，这时返回类型可以省略*/
+/*Kotlin不会推断拥有块体的返回类型，因为这种函数可能拥有非常复杂的控制流程，返回类型对于阅读代码的人来说就不是那么明显了（有时，对于编译器来说亦如此）*/
+fun add2(a: Int, b: Int): Int {
+    return a + b
+}
+
+一个方法中，只允许一个参数为vararg，通常作为最后一个参数。如果vararg不是最后一个参数，那么其后的参数就需要通过具名参数形式进行传递
