@@ -112,7 +112,9 @@ Lambda表达式格式要求：
 1.一个lambda表达式总是被一对花括号包围
 2.其参数（如果有的话）位于 -> 之前（参数类型是可以省略掉的）
 3.执行体位于 -> 之后
-在Kotlin中，如果一个函数最后一个参数是个函数，那么可以将lambda表达式作为实参传递进去，并且可以在调用时放置到括号之外使用
+在Kotlin中，如果一个函数最后一个参数是个函数，那么可以将lambda表达式作为实参传递进去，并且可以在调用时放置到括号之外使用；
+在lambda表达式中，最后一个表达式隐式作为lambda表达式的返回值，可以通过全限定的return语法显式从lambda表达式返回值
+
 val multiply: (Int, Int) -> Int = { a, b -> a * b }
 val add: (Int, Int) -> Int = { a, b -> a + b }
 val sub = { a: Int, b: Int -> a - b }
@@ -126,4 +128,61 @@ fun myCalculate(a: Int, b: Int, calculate: (Int, Int) -> Int) = calculate(a, b)
 
 fun main(args: Array<String>) {
     println(myCalculate(1, 2) { a, b -> a + b })
+    println(myCalculate(1, 2) { a, b -> a - b })
+    println(myCalculate(1, 2) { a, b -> a * b })
+    println(myCalculate(1, 2) { a, b -> a / b })
+}
+
+fun String.filter(predicate: (Char) -> Boolean): String {
+    val sb = StringBuffer()
+    for (index in 0 until length) {
+        val element = get(index)
+        if (predicate(element))
+            sb.append(element)
+    }
+    return sb.toString()
+}
+
+fun main(args: Array<String>) {
+    println("ab2cd3ef4gh".filter { it.isLetter() })
+}
+
+fun main(args: Array<String>) {
+    val strings = arrayOf("hello", "world", "welcome", "hello world", "bye")
+    strings.filter { it.contains("h") }.forEach { println(it) }
+    println("===========")
+    strings.filter { it.length > 4 }.forEach { println(it) }
+    println("===========")
+    strings.filter { it.endsWith("d") }.map { it.toUpperCase() }.forEach { println(it) }
+}
+
+fun main(args: Array<String>) {
+    val strings = arrayOf("hello", "world", "bye")
+    strings.filter {
+        val mayFilter = it.length > 3
+        mayFilter
+    }
+    strings.filter {
+        val mayFilter = it.length > 3
+//        return@filter mayFilter
+        return@filter it.length > 3
+    }
+}
+
+匿名函数（anonymous function）
+fun main(args: Array<String>) {
+    fun(x: Int, y: Int) = x + y // 匿名函数本身没办法被调用，它应该在lambda表达式中被调用
+
+    val strings = arrayOf("hello", "world", "bye")
+    strings.filter(fun(item): Boolean = item.length > 3)
+            .forEach(fun(item) { println(item) })
+}
+
+闭包
+lambda表达式可以访问到其外层的变量
+fun main(args: Array<String>) {
+    var sum = ""
+    val strings = arrayOf("hello", "world", "bye")
+    strings.filter { it.length > 3 }.forEach { sum += it }
+    println(sum)
 }
