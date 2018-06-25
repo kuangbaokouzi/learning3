@@ -1,0 +1,18 @@
+Oracle
+Oracle为商用数据库，行业中占据相当的地位，开发、管理资源相当丰富。一般项目中至少有两个Oracle数据库：联机事务处理（OLTP）数据库，联机分析处理数据库（OLAP），通过配置实现这两个数据库的同步。Oracle具有良好的兼容性、可移植性、可连接性和高生产率使Oracle RDBMS具有良好的开放性。
+
+MySQL
+MySQL应用实例也大都集中于互联网方向，MySQL的高并发存取能力并不比大型数据库差，同时价格便宜，安装使用简便快捷，深受广大互联网公司的喜爱。并且由于MySQL的开源特性，针对一些对数据库有特别要求的应用，可以通过修改代码来实现定向优化，例如SNS、LBS等互联网业务。
+
+Spring
+Spring在Java领域的地位稳固且不可动摇，发布十余年来，Spring已经从单一的IoC与AOP框架发展为一站式、多项目的基础平台系统；从Spring Framework、Spring Data、Spring Social到Spring Boot、Spring Cloud等，Spring已经成为面向全领域的一体化解决方案。
+
+
+SpringMVC
+SpringMVC天生与Spring框架集成（如IoC容器、AOP等），让我们能非常简单的设计出干净的Web层和薄薄的Web层并进行更简洁的Web层的开发。SpringMVC提供强大的约定大于配置的契约式编程支持以及非常灵活的数据验证、格式化和数据绑定机制；SpringMVC还支持Restful风格编程。在框架灵活性、易用性和扩展性上，SpringMVC已经全面超越了其它的MVC框架，伴随着Spring不断优化，可以预见SpringMVC在MVC市场上的吸引力将越来越不可抗拒。
+
+Hibernate
+Hibernate可以在底层对元数据和对象进行转化，使得开发者只用面向对象的方式来存取数据即可。Hibernate使用xml或JPA的配置以及数据库方言等等的机制，使得Hibernate具有更好的移植性，开发者无需关心数据库之间的差异。Hibernate提供了大量的封装，开发者不需写大量的sql语句，这就极大的提高了开发者的开发效率。作为最主流的ORM框架之一，Hibernate在支持大型企业级应用方面有着无法取代的地位。
+
+MyBatis
+Mybatis易于学习，易于使用，通过文档和源代码，可以比较完全的掌握它的设计思路和实现。。Mybaits提供了连接管理，缓存支持，线程支持，（分布式）事务管理，通过配置作关系对象映射等数据访问层需要解决的问题。Mybaits通过提供DAL层，将业务逻辑和数据访问逻辑分离，使系统的设计更清晰，更易维护，更易单元测试。sql和代码的分离，提高了可维护性。Mybaits以其成本小，能力强的特点备受中小型Web应用企业的青睐，已经成为主流ORM框架。
