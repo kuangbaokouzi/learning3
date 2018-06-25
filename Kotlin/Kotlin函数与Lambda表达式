@@ -71,4 +71,59 @@ fun add2(a: Int, b: Int): Int {
     return a + b
 }
 
-一个方法中，只允许一个参数为vararg，通常作为最后一个参数。如果vararg不是最后一个参数，那么其后的参数就需要通过具名参数形式进行传递
+一个方法中，只允许一个参数为vararg，通常作为最后一个参数。如果vararg不是最后一个参数，那么其后的参数就需要通过具名参数形式进行传递；如果其后的参数是函数类型，那么还可以通过在圆括号外传递lambda表达式来实现
+fun <T> convert2List(vararg elements: T): List<T> {
+    val result = ArrayList<T>()
+    elements.forEach { result.add(it) }
+    return result
+}
+
+fun main(args: Array<String>) {
+    println(convert2List("hello", "world", "hello world"))
+    var elements = arrayOf("Kate", "Allen", "Smith")
+    println(convert2List("John", "Brown", *elements))
+}
+
+中缀符号（infix notation）
+函数还可以通过中缀符号的形式来调用，需要满足以下3个条件：
+1.是成员函数或是扩展函数
+2.拥有单个参数
+3.声明时使用infix关键字
+class InfixTest(private var a: Int) {
+    infix fun add(b: Int) = this.a + b
+}
+
+fun main(args: Array<String>) {
+    var infixTest = InfixTest(2)
+    println(infixTest.add(5))
+    println(infixTest add 5)
+}
+
+内联函数（inline function）
+inline fun myCalculate(a:Int, b:Int) = a + b
+
+fun main(args: Array<String>) {
+    println(myCalculate(1,2))
+}
+
+高阶函数（high-order function）
+接收另一个函数作为参数或者返回另一个函数作为结果的函数
+Lambda表达式格式要求：
+1.一个lambda表达式总是被一对花括号包围
+2.其参数（如果有的话）位于 -> 之前（参数类型是可以省略掉的）
+3.执行体位于 -> 之后
+在Kotlin中，如果一个函数最后一个参数是个函数，那么可以将lambda表达式作为实参传递进去，并且可以在调用时放置到括号之外使用
+val multiply: (Int, Int) -> Int = { a, b -> a * b }
+val add: (Int, Int) -> Int = { a, b -> a + b }
+val sub = { a: Int, b: Int -> a - b }
+val myAction = { println("hello world") }
+
+val mayResultNull: (Int, Int) -> Int? = { _, _ -> null }
+val functionMaybeNull: ((Int, Int) -> Int)? = null
+
+
+fun myCalculate(a: Int, b: Int, calculate: (Int, Int) -> Int) = calculate(a, b)
+
+fun main(args: Array<String>) {
+    println(myCalculate(1, 2) { a, b -> a + b })
+}
