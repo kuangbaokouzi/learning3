@@ -1,8 +1,6 @@
 Java NIO之Selector javadoc
 
-【SelectableChannel对象的多路转换器。】
-
-SelectableChannel是一个通道，可以通过Selector对它进行多路转换。
+【SelectableChannel是一个通道，可以通过Selector对它进行多路转换。】
 
 为了与一个选择器一起被使用，该类的实例必须通过register(Selector,int,Object)方法被注册。这个方法会返回一个新的SelectionKey对象，这个对象代表了通道注册到了选择器中。
 
@@ -106,4 +104,8 @@ public abstract Set<SelectionKey> selectedKeys();
 返回当前选择则其的selected-key集合。可以移除key，但不能直接添加key到selected-key中。
 
 public abstract int select() throws IOException;
-选择key的集合，这些key对应的通道已经为I/O操作准备就绪。
+选择key的集合，这些key对应的通道已经为I/O操作准备就绪。这个方法执行一个阻塞选择操作。它只在至少一个通道被选择后才返回，要么这个选择器的wakeup方法被调用，或者当前线程被中断。
+
+public abstract Selector wakeup();
+引起还未返回的第一个选择操作立即返回。如果另一个线程在调用select()或select(long)被阻塞，那个调用会立即返回。如果当前没有选择操作执行，下一个这些方法的调用会立即返回，除非selectNow方法同时被调用。任何情况下，调用返回值可能是非0的。select和select(long)的子调用通常会阻塞，除非这个方法同时被再次调用。
+
