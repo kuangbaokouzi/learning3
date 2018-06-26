@@ -26,9 +26,9 @@ SelectableChannel是一个通道，可以通过Selector对它进行多路转换�
 SelectionKey register(Selector sel, int ops, Object att)
 注册通道到给定的选择器，并返回一个选择key。
 
-如果当前通道正好被注册到给定的选择器，代表注册信息的选择key会被返回。这个key的特性集合会被改变为ops参数。如果调用SelectionKey.interestOps(int)方法。如果att参数不是null，这个key的附着对象会被设定为att。如果key被取消了，将抛出CancelledKeyException异常。
+如果当前通道正好被注册到给定的选择器，代表注册信息的选择key会被返回。这个key的兴趣事件集合会被改变为ops参数。如果调用SelectionKey.interestOps(int)方法。如果att参数不是null，这个key的附着对象会被设定为att。如果key被取消了，将抛出CancelledKeyException异常。
 
-此外，当前通道还未被注册到选择器，那么注册该通道到指定的选择器并返回一个新的选择key。这个key的特性集合被设置成ops，附着对象被设定为att。
+此外，当前通道还未被注册到选择器，那么注册该通道到指定的选择器并返回一个新的选择key。这个key的兴趣事件集合被设置成ops，附着对象被设定为att。
 
 这个方法可能在任何时间被调用。如果该方法调用的时候存在另一个对该方法的调用，或者configureBlocking方法在执行，该方法首先阻塞直到其它操作完成。这个方法会在选择其的key上发生同步，因此，如果该方法调用被并发地调用，并且与其另一个注册操作或选择操作是同一个选择器，这个方法会阻塞。
 
@@ -53,7 +53,7 @@ SelectableChannel对象的多路转换器。
 
 1.key的集合，包含了代表注册到当前选择器的通道注册信息的选择key。这个集合被keys方法返回。
 2.被选择的key的集合，它是这些key的集合：
-每个key的通道被检测到至少为一个操作做好了准备。这些操作在选择操作期间被定义到这个每个key的特性几何中。
+每个key的通道被检测到至少为一个操作做好了准备。这些操作在选择操作期间被定义到这个每个key的兴趣事件集合中。
 
 这个集合被selectedKeys方法返回。它总是key集合的子集。
 3.被取消的key的集合，它是那些已经被取消的key的集合，但是它们的通道还未被注销。这个集合没法直接访问。它总是key集合的子集。
@@ -66,6 +66,44 @@ SelectableChannel对象的多路转换器。
 
 通过选择操作，key被添加到selected-key集合中。该集合中的key只能通过java.util.Set的迭代器进行删除，初次之外，别无他法。尤其不能在选择操作产生的副作用里被删除。该集合中的key也许不是直接被加入到其中的。
 
-【Selection】
+【Selection选择】
 在每个选择操作期间，key可能被添加到selected-key集合中或从selected-key中删除，并且还可能从它的key或cancelled-key集合中删除。Selection是通过select、select(long)以及selectNow方法调用被执行，这涉及到三个步骤：
-1.在cancelled-key集合中的每个key
+1.在cancelled-key集合中的每个key被删除，并且key的通道被注销。这个步骤使cancelled-key集合置空
+2.为一个更新查询底层操作系统，这个更新是关于每个剩下的通道执行任意操作（在选择操作开始的时候被定义在key的兴趣事件集合中）准备就绪状态。对于一个为至少一个这样的操作准备的通道来说，以下两个动作其中之一会被执行：
+
+    如果这个通道的key还未在selected-key集合中，它会被加入到集合中，并且它的就绪操作会被修改来准确标识那些为报告通道准备就绪的作。
+
+    此外，如果这个通道的key已经在selected-key集合中，它的就绪操作会被修改来标识任意一个新的为报告通道准备就绪的操作。先前被记录到预备集合中的准备就绪信息会被保留，换言之，通过底层系统被返回的准备集合，会按位被分开到key的当前预备集合中。
+
+如果key集合中所有的key在这个步骤的开始拥有空的兴趣事件集合，selected-key和任一个key的预备操作集合都不会被更新。
+
+3.如果2执行的时候任意一个key被添加到cancelled-key中，这些key会被进行1中的操作。
+
+三个select操作必要的区分是是否阻塞和等待时间长短。
+
+【Concurrency并发】
+选择器本身被用于多线程是安全的，但是它们的key的集合不是安全的。
+
+选择操作在选择器自身，key集合和selected-key集合上同步。它们在上述的步骤1和3期间的cancelled-key集合上也同步。
+
+在一个选择操作正在执行的过程中，选择器的key的集合的兴趣事件的改变对操作没有影响，它们在下一个选择操作的时候生效。
+
+key可能在任意时间被取消，通道可能在任意时间被关闭。在一个或多个选择器的key集合中存在一个key并不意味着key是合法的或者它的通道是打开状态。应用代码应该小心地进行同步并且有必要检查这些条件，如果另一个线程将取消一个key或关闭一个通道。
+
+select方法上的线程会被其它线程的3中方式中断：
+1.通过调用选择器的wakeup方法
+2.通过调用选择器的close方法
+3.通过调用java.lang.Thread.intterupt方法
+
+close方法在选择器上同步，所有三个key集合在一个选择器操作上具有相同的顺序。
+
+通常，选择器的key集合和selected-key用在多线程中是不安全的。如果这样一个线程直接修改这些集合，在集合自身的访问方面必须控制同步。这些集合的迭代器被创建后，修改集合是快速失败的。
+
+public abstract Set<SelectionKey> keys();
+返回当前选择器的key集合。key集合不可以被直接修改。一个key只能在被取消和它的通道被注销的时候才被移除。
+
+public abstract Set<SelectionKey> selectedKeys();
+返回当前选择则其的selected-key集合。可以移除key，但不能直接添加key到selected-key中。
+
+public abstract int select() throws IOException;
+选择key的集合，这些key对应的通道已经为I/O操作准备就绪。
