@@ -1,0 +1,42 @@
+Java NIO之SocketChannel javadoc
+
+【SocketChannel为面向流连接套接字的一个可选通道。】
+
+通过调用open方法创建一个socket通道。不可能为一个随机的、预先存在的socket创建一个通道。一个新创建的socket通道是打开的但还没有被连接。在一个未连接的sokcet通道上尝试调用I/O操作会引起NotYetConnectedException异常抛出。一个socket通道可以通过调用它的connect方法被连接。一旦被连接，一个socket通道保留连接状态知道它被关闭。可以通过调用socket通道的isConnected方法检测它是否被连接。
+
+socket通道支持非阻塞连接：
+通过调用connect方法，一个socket通道可能被创建并且建立远程socket连接，通过finishConnect方法完成后续动作。通过调用isConnectionPending方法检测连接操作是否在执行。
+
+sokcet通道支持异步关闭，与特定通道的异步关闭操作类似。如果socket输入方在一个线程中被关闭，同时另一个线程在这个socket通道上的读操作中阻塞，阻塞线程的读操作不会读取任何字节就结束并返回-1。如果socket输出方法在一个线程中被关闭，同时另一个线程在这个socket通道上的写操作中阻塞，阻塞线程会接收到一个AsynchronousCloseException异常。
+
+使用setOption方法配置socket选项。socket通道支持下列选项：
+java.net.StandardSocketOptions.SO_SNDBUF socket发送缓冲区的大小
+java.net.StandardSocketOptions.SO_RCVBUF socket接收缓冲区的大小
+java.net.StandardSocketOptions.SO_KEEPALIVE 保持连接激活状态
+java.net.StandardSocketOptions.SO_REUSEADDR 重用地址
+java.net.StandardSocketOptions.SO_LINGER 如果当前有数据，滞留关闭（仅仅在阻塞模式配置）
+java.net.StandardSocketOptions.TCP_NODELAY 禁用Nagle算法
+
+附加（指定实现）选项也被支持。
+
+socket通道用于多线程是安全的。它们支持并发读写，尽管大多数时候，读写都是单线程的。connect方法和finishConncet方法相互同步，当它们当中的一个方法正在被调用执行，尝试初始化一个读/写操作会阻塞，直到方法被调用执行完毕。
+
+public static SocketChannel open() throws IOException
+打开一个socket通道。一个新的通道通过java.nio.channels.spi.SelectorProvider#openSocketChannel方法被创建,openSocketChannel方法是全系统默认的java.nio.channels.spi.SelectorProvider对象。
+
+public abstract SocketChannel bind(SocketAddress local)
+绑定通道的sokcet到一个本地地址。这个方法被用来在socket和本地地址之间建立一个连接。一旦连接被建立，sokcet会保留绑定直到通报被关闭。如果local参数为null，sokcet会绑定到一个自顶分配的地址上。
+
+public abstract Socket socket();
+获取一个与当前通道关联的socket。
+
+public abstract boolean connect(SocketAddress remote) throws IOException;
+连接当前通道的socket。
+
+如果通道处于非阻塞模式，这个方法的一个调用会被初始化成非阻塞连接操作。如果连接马上被建立了，如果一个本地连接一样，这个方法返回true。否则这个方法返回false，并且连接操作稍后必须通过finishConnect方法被完成。
+
+如果通道处于阻塞模式，调用这个方法也会阻塞知道连接被建立或者I/O操作发生错误。
+
+这个方法执行与java.net.Socket类完全相同的安全检查。也就是说，如果一个安全管理器被创建，这个方法会验证java.lang.SecurityManager#checkConnect方法对指定远程终端的地址和端口上的许可证。
+
+这个方法可以在任何时间被调用。如果这个通道的上由读或写操作被调用，同时这个方法正在调用，读写操作会优先阻塞直到方法调用完成。如果尝试初始化一个连接失败了，也就是说，方法调用抛出了检查异常，通道会被关闭。

@@ -1,0 +1,18 @@
+Java NIO之ServerSocketChannel
+
+【ServerSocketChannel一个面向流监听socket的可选通道】
+
+通过调用open方法创建一个server-socket通道。不可能为一个随机的、预先存在的server-socket创建一个通道。。一个新创建的server-socket通道是打开的但还没有绑定。尝试调用一个未绑定的server-socket通道的accept方法会引起NotYetBoundException抛出。一个server-socket通道可以通过调用bind(java.net.SocketAddress,int)方法被绑定。
+
+server-socket支持下列选项：
+java.net.StandardSocketOptions#SO_RCVBUF socket接收缓冲区的大小
+java.net.StandardSocketOptions#SO_REUSEADDR 重用地址
+
+server-socket用于多个并发线程安全。
+
+public abstract SocketChannel accept() throws IOException;
+接受一个被当前通道socket创建的连接。
+
+如果这个通道处于非阻塞模式，如果没有可添加的连接，这个方法会立即返回null。否则，它会一直处于阻塞状态，直到一个新连接可以获得，或者一个I/O产生异常。
+
+sokcet通道会被该方法返回，如果返回了socket通道，这个方法进入阻塞模式。
