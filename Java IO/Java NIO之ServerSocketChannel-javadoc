@@ -2,7 +2,7 @@ Java NIO之ServerSocketChannel
 
 【ServerSocketChannel一个面向流监听socket的可选通道】
 
-通过调用open方法创建一个server-socket通道。不可能为一个随机的、预先存在的server-socket创建一个通道。。一个新创建的server-socket通道是打开的但还没有绑定。尝试调用一个未绑定的server-socket通道的accept方法会引起NotYetBoundException抛出。一个server-socket通道可以通过调用bind(java.net.SocketAddress,int)方法被绑定。
+通过调用open方法创建一个server-socket通道。不可能为一个随机的、预先存在的server-socket创建一个通道。一个新创建的server-socket通道是打开的但还没有绑定。尝试调用一个未绑定的server-socket通道的accept方法会引起NotYetBoundException抛出。一个server-socket通道可以通过调用bind(java.net.SocketAddress,int)方法被绑定。
 
 server-socket支持下列选项：
 java.net.StandardSocketOptions#SO_RCVBUF socket接收缓冲区的大小
