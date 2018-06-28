@@ -1,0 +1,45 @@
+javanio-server-master源码解读之Server
+
+public class Server {
+
+    /*Socket接收器*/
+    private SocketAccepter  socketAccepter  = null;
+    /*Scoket处理器*/
+    private SocketProcessor socketProcessor = null;
+
+    private int tcpPort = 0;// 服务器绑定端口
+    /*消息阅读器工厂*/
+    private IMessageReaderFactory messageReaderFactory = null;
+    /*消息处理器*/
+    private IMessageProcessor     messageProcessor = null;
+
+    /*构造器，初始化端口号、消息阅读器工厂和消息处理器*/
+    public Server(int tcpPort, IMessageReaderFactory messageReaderFactory, IMessageProcessor messageProcessor) {
+        this.tcpPort = tcpPort;
+        this.messageReaderFactory = messageReaderFactory;
+        this.messageProcessor = messageProcessor;
+    }
+
+    /*启动服务线程*/
+    public void start() throws IOException {
+        /*创建大小1024的队列*/
+        Queue socketQueue = new ArrayBlockingQueue(1024); //move 1024 to ServerConfig
+
+        /*初始化socket接收器,根据端口号和队列*/
+        this.socketAccepter  = new SocketAccepter(tcpPort, socketQueue);
+
+        /*创建消息读写缓冲区*/
+        MessageBuffer readBuffer  = new MessageBuffer();
+        MessageBuffer writeBuffer = new MessageBuffer();
+
+        /*初始化socket处理器，根据socket队列、读写缓冲区、消息阅读器工厂和消息处理器*/
+        this.socketProcessor = new SocketProcessor(socketQueue, readBuffer, writeBuffer,  this.messageReaderFactory, this.messageProcessor);
+
+        /*创建socket接收器线程和socket处理器线程，并启动线程*/
+        Thread accepterThread  = new Thread(this.socketAccepter);
+        Thread processorThread = new Thread(this.socketProcessor);
+
+        accepterThread.start();
+        processorThread.start();
+    }
+}

@@ -1,0 +1,46 @@
+javanio-server-master源码解读之SocketAccepter
+
+public class SocketAccepter implements Runnable{
+
+    private int tcpPort = 0;// socket绑定端口
+    private ServerSocketChannel serverSocket = null;// server-socket通道
+    private Queue socketQueue = null;// socket队列
+
+    /*初始化socket接收器，根据端口和socket队列*/
+    public SocketAccepter(int tcpPort, Queue socketQueue)  {
+        this.tcpPort     = tcpPort;
+        this.socketQueue = socketQueue;
+    }
+
+    /*线程方法*/
+    public void run() {
+        try{
+            /*创建一个server-socket通道对象*/
+            this.serverSocket = ServerSocketChannel.open();
+            /*server-socket通道对象绑定指定端口*/
+            this.serverSocket.bind(new InetSocketAddress(tcpPort));
+        } catch(IOException e){
+            e.printStackTrace();
+            return;
+        }
+
+        /*无限循环*/
+        while(true){
+            try{
+                /*server-socket通道监听客户端请求，此处阻塞*/
+                SocketChannel socketChannel = this.serverSocket.accept();
+
+                System.out.println("Socket accepted: " + socketChannel);
+
+                //todo check if the queue can even accept more sockets.
+                /*根据接收到的socket通道创建socket实例，并添加到socket队列中*/
+                this.socketQueue.add(new Socket(socketChannel));
+
+            } catch(IOException e){
+                e.printStackTrace();
+            }
+
+        }
+
+    }
+}

@@ -1,0 +1,58 @@
+javanio-server-master源码解读之Socket
+
+public class Socket {
+
+    public long socketId;// socketId
+
+    public SocketChannel  socketChannel = null;// socket通道
+    public IMessageReader messageReader = null;// 消息阅读器
+    public MessageWriter  messageWriter = null;// 消息编写器
+
+    public boolean endOfStreamReached = false;// 流结束标记
+
+    public Socket() {
+    }
+
+    /*初始化socket，根据socket通道*/
+    public Socket(SocketChannel socketChannel) {
+        this.socketChannel = socketChannel;
+    }
+
+    /*读取通道消息到指定的字节缓冲区中，并返回整个消息的长度*/
+    public int read(ByteBuffer byteBuffer) throws IOException {
+        /*将socket通道中的消息读到字节缓冲区中*/
+        int bytesRead = this.socketChannel.read(byteBuffer);
+        /*初始化消息总长*/
+        int totalBytesRead = bytesRead;
+        /*如果读取字节大于0，就循环读*/
+        while(bytesRead > 0){
+            /*将socket通道中的消息读到字节缓冲区中*/
+            bytesRead = this.socketChannel.read(byteBuffer);
+            /*消息长度累加*/
+            totalBytesRead += bytesRead;
+        }
+        /*读取长度-1，流读操作结束，流结束标记置为true*/
+        if(bytesRead == -1){
+            this.endOfStreamReached = true;
+        }
+        /*返回消息总长*/
+        return totalBytesRead;
+    }
+
+    /*将通道中的消息写入指定的字节缓冲数组中，并返回写入消息的总长*/
+    public int write(ByteBuffer byteBuffer) throws IOException{
+        /*将socket通道消息写入到字节缓冲数组中*/
+        int bytesWritten      = this.socketChannel.write(byteBuffer);
+        /*初始化消息总长*/
+        int totalBytesWritten = bytesWritten;
+        /*如果读取消息字节数大于0并且字节缓冲区中还有剩余位置，循环写*/
+        while(bytesWritten > 0 && byteBuffer.hasRemaining()){
+            /*将socket通道消息写入到字节缓冲数组中*/
+            bytesWritten = this.socketChannel.write(byteBuffer);
+            /*消息长度叠加*/
+            totalBytesWritten += bytesWritten;
+        }
+         /*返回消息总长*/
+        return totalBytesWritten;
+    }
+}

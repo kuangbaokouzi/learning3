@@ -1,0 +1,39 @@
+javanio-server-master源码解读之Main
+
+public class Main {
+
+    public static void main(String[] args) throws IOException {
+
+        /*定义http响应内容*/
+        String httpResponse = "HTTP/1.1 200 OK\r\n" +
+                "Content-Length: 38\r\n" +
+                "Content-Type: text/html\r\n" +
+                "\r\n" +
+                "<html><body>Hello World!</body></html>";
+
+        /*对响应内容编码，返回字节数组*/
+        byte[] httpResponseBytes = httpResponse.getBytes("UTF-8");
+
+        /*IMessageProcessor是只包含一个接口方法的接口，也就是函数是接口，利用lambda表达式定义process方法最终执行的逻辑过程。
+        参数request是Message实例，参数writeProxy是写代理实例。
+        */
+        IMessageProcessor messageProcessor = (request, writeProxy) -> {
+            /*打印当前消息对应的socketId*/
+            System.out.println("Message Received from socket: " + request.socketId);
+
+            /*获得响应消息对象，设置socketId，封装响应消息内容，并将消息放进写队列中*/
+            Message response = writeProxy.getMessage();
+            response.socketId = request.socketId;
+            response.writeToMessage(httpResponseBytes);
+
+            writeProxy.enqueue(response);
+        };
+
+        /*创建服务器实例，根据给定的端口号，http消息阅读器工厂和消息处理器*/
+        Server server = new Server(9999, new HttpMessageReaderFactory(), messageProcessor);
+
+        /*启动服务线程*/
+        server.start();
+
+    }
+}
