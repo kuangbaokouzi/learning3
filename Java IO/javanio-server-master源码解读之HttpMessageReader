@@ -1,0 +1,64 @@
+javanio-server-master源码解读之HttpMessageReader
+
+public class HttpMessageReader implements IMessageReader {
+    /*消息缓冲区*/
+    private MessageBuffer messageBuffer    = null;
+    /*完成消息列表*/
+    private List<Message> completeMessages = new ArrayList<Message>();
+    /*下一条消息*/
+    private Message       nextMessage      = null;
+
+    public HttpMessageReader() {
+    }
+
+    /*初始化*/
+    @Override
+    public void init(MessageBuffer readMessageBuffer) {
+        /*读消息缓冲区*/
+        this.messageBuffer        = readMessageBuffer;
+        /*下一条消息*/
+        this.nextMessage          = messageBuffer.getMessage();
+        /*下一条消息的元数据*/
+        this.nextMessage.metaData = new HttpHeaders();
+    }
+
+    @Override
+    public void read(Socket socket, ByteBuffer byteBuffer) throws IOException {
+        /*将socket中的消息读到缓冲区中*/
+        int bytesRead = socket.read(byteBuffer);
+        /*翻转缓冲区，使其可写*/
+        byteBuffer.flip();
+        /*如果缓冲区中没有剩余字节*/
+        if(byteBuffer.remaining() == 0){
+            /*清空缓冲区*/
+            byteBuffer.clear();
+            return;
+        }
+        /*将下一条消息写入缓冲区*/
+        this.nextMessage.writeToMessage(byteBuffer);
+        /*解析HttpRequest，根据消息共享数组、消息偏移量、消息总长和元数据*/
+        int endIndex = HttpUtil.parseHttpRequest(this.nextMessage.sharedArray, this.nextMessage.offset, this.nextMessage.offset + this.nextMessage.length, (HttpHeaders) this.nextMessage.metaData);
+        /*解析成功*/
+        if(endIndex != -1){
+            /*获取消息对象*/
+            Message message = this.messageBuffer.getMessage();
+            /*初始化元数据为HttpHeaders*/
+            message.metaData = new HttpHeaders();
+            /*写部分消息到下一条消息对象*/
+            message.writePartialMessageToMessage(nextMessage, endIndex);
+            /*将下一条消息对象添加到完整消息列表*/
+            completeMessages.add(nextMessage);
+            /*将新的消息对象作为下一条消息*/
+            nextMessage = message;
+        }
+        /*解析失败，清空缓冲区*/
+        byteBuffer.clear();
+    }
+
+    /*获取完整消息列表*/
+    @Override
+    public List<Message> getMessages() {
+        return this.completeMessages;
+    }
+
+}

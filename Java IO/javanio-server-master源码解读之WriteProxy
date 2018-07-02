@@ -1,0 +1,22 @@
+javanio-server-master源码解读之WriteProxy
+
+public class WriteProxy {
+    /消息缓冲区**/
+    private MessageBuffer messageBuffer = null;
+    /*写队列*/
+    private Queue        writeQueue     = null;
+    /*初始化写代理，根据消息缓冲区和写队列*/
+    public WriteProxy(MessageBuffer messageBuffer, Queue writeQueue) {
+        this.messageBuffer = messageBuffer;
+        this.writeQueue = writeQueue;
+    }
+    /*获得消息缓冲区中的消息对象*/
+    public Message getMessage(){
+        return this.messageBuffer.getMessage();
+    }
+    /*将消息对象加入到写队列中*/
+    public boolean enqueue(Message message){
+        return this.writeQueue.offer(message);
+    }
+
+}

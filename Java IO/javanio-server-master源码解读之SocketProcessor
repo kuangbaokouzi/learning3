@@ -108,41 +108,54 @@ public class SocketProcessor implements Runnable {
 
 
     public void readFromSockets() throws IOException {
+        /*选取I/O操作准备就绪通道对应key集合*/
         int readReady = this.readSelector.selectNow();
-
+        /*如果集合不为空*/
         if(readReady > 0){
+            /*选取选择器的selected-key集合*/
             Set<SelectionKey> selectedKeys = this.readSelector.selectedKeys();
             Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
-
+            /*利用迭代器便利了SelectionKey集合*/
             while(keyIterator.hasNext()) {
                 SelectionKey key = keyIterator.next();
-
+                /*将SelectionKey中的Socket信息读取到读取字节缓冲区中*/
                 readFromSocket(key);
-
+                /*每次处理完读取操作，将SelectionKey从当前迭代器中移除*/
                 keyIterator.remove();
             }
+            /*当所有的SelectionKey已经处理完毕，清空集合*/
             selectedKeys.clear();
         }
     }
 
     private void readFromSocket(SelectionKey key) throws IOException {
+        /*获得SelectionKey中附着的Socket对象*/
         Socket socket = (Socket) key.attachment();
+        /*将Socket对象中的消息读取到读取字节缓冲区中*/
         socket.messageReader.read(socket, this.readByteBuffer);
-
+        /*获得完整消息列表*/
         List<Message> fullMessages = socket.messageReader.getMessages();
+        /*如果消息列表不为空*/
         if(fullMessages.size() > 0){
+            /*遍历消息列表*/
             for(Message message : fullMessages){
                 message.socketId = socket.socketId;
+                /*执行处理器处理每条消息：将消息逐条添加到写出消息队列中*/
                 this.messageProcessor.process(message, this.writeProxy);  //the message processor will eventually push outgoing messages into an IMessageWriter for this socket.
             }
+            /*清空消息列表*/
             fullMessages.clear();
         }
-
+        /*如果读取操作结束*/
         if(socket.endOfStreamReached){
             System.out.println("Socket closed: " + socket.socketId);
+            /*从映射中移除当前socket实例*/
             this.socketMap.remove(socket.socketId);
+            /*SelectionKey的附着对象置空*/
             key.attach(null);
+            /*SelectionKey取消*/
             key.cancel();
+            /*SelectionKey对应的通道关闭*/
             key.channel().close();
         }
     }
@@ -151,72 +164,93 @@ public class SocketProcessor implements Runnable {
     public void writeToSockets() throws IOException {
 
         // Take all new messages from outboundMessageQueue
+        /*获取出站消息*/
         takeNewOutboundMessages();
 
         // Cancel all sockets which have no more data to write.
+        /*清空没有消息可写的socket集合*/
         cancelEmptySockets();
 
         // Register all sockets that *have* data and which are not yet registered.
+        /*注册所有有数据但没注册的socket*/
         registerNonEmptySockets();
 
         // Select from the Selector.
+        /*选取I/O操作准备就绪通道对应key集合*/
         int writeReady = this.writeSelector.selectNow();
-
+        /*如果key集合不为空*/
         if(writeReady > 0){
+            /*获取selected-key集合*/
             Set<SelectionKey>      selectionKeys = this.writeSelector.selectedKeys();
             Iterator<SelectionKey> keyIterator   = selectionKeys.iterator();
-
+            /*利用迭代器遍历selected-key集合*/
             while(keyIterator.hasNext()){
                 SelectionKey key = keyIterator.next();
-
+                /*获得当前SelectionKey附着的Socket对象*/
                 Socket socket = (Socket) key.attachment();
-
+                /*将socket中的消息写入到写字节缓冲区中*/
                 socket.messageWriter.write(socket, this.writeByteBuffer);
-
+                /*如果消息写入器中的消息队列为空*/
                 if(socket.messageWriter.isEmpty()){
+                    /*将socket对象添加到非空到空的socket集合*/
                     this.nonEmptyToEmptySockets.add(socket);
                 }
-
+                /*移除当前SelectionKey*/
                 keyIterator.remove();
             }
-
+            /*清空SelectionKey集合*/
             selectionKeys.clear();
 
         }
     }
 
     private void registerNonEmptySockets() throws ClosedChannelException {
+        /*遍历空到非空集合*/
         for(Socket socket : emptyToNonEmptySockets){
+            /*将socket对一个的通道注册到writeSelector上，将兴趣事件置为写状态，并将当前socket设定为附着对象*/
             socket.socketChannel.register(this.writeSelector, SelectionKey.OP_WRITE, socket);
         }
+        /*清空空到非空socket集合*/
         emptyToNonEmptySockets.clear();
     }
 
     private void cancelEmptySockets() {
+        /*遍历非空到空socket集合*/
         for(Socket socket : nonEmptyToEmptySockets){
+            /*获取当前socket通道对应的SelectionKey*/
             SelectionKey key = socket.socketChannel.keyFor(this.writeSelector);
-
+            /*取消当前SelectionKey*/
             key.cancel();
         }
+        /*清空非空到空socket集合*/
         nonEmptyToEmptySockets.clear();
     }
 
     private void takeNewOutboundMessages() {
+        /*出站消息队列出队消息*/
         Message outMessage = this.outboundMessageQueue.poll();
+        /*如果消息不为空*/
         while(outMessage != null){
+            /*从socket映射中取出当前出队消息对应的socket实例*/
             Socket socket = this.socketMap.get(outMessage.socketId);
-
+            /*如果socket实例不为空*/
             if(socket != null){
+                /*获得当前socket对象消息写入器*/
                 MessageWriter messageWriter = socket.messageWriter;
+                /*如果当前socket对象消息写入器的消息队列为空*/
                 if(messageWriter.isEmpty()){
+                    /*将出队消息加入到消息写入器的消息队列中*/
                     messageWriter.enqueue(outMessage);
+                    /*从非空到空socket集合中移除当前socket*/
                     nonEmptyToEmptySockets.remove(socket);
+                    /*将当前socket加入到空到非空socket集合中*/
                     emptyToNonEmptySockets.add(socket);    //not necessary if removed from nonEmptyToEmptySockets in prev. statement.
                 } else{
+                   /*如果当前socket对象的消息写入器中的消息队列不为空*/
                    messageWriter.enqueue(outMessage);
                 }
             }
-
+            /*继续从出站消息队列中出队消息*/
             outMessage = this.outboundMessageQueue.poll();
         }
     }
