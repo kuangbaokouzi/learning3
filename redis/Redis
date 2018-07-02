@@ -1,0 +1,127 @@
+NoSQL概述
+
+NoSQL = Not only SQL
+非关系型数据库
+
+高并发读写、海量数据的高效率存储和访问、高可扩展性和高可用性
+
+NoSQL数据库的四大分类：
+键值（Key-Value）存储
+列存储
+文档数据库
+图形数据库
+
+易扩展、灵活的数据类型、大数据量，高性能、高可用
+
+Redis概述
+高性能键值对数据库，支持的键值对数据类型：
+字符串、列表、有序集合、三列、集合
+
+引用场景：
+缓存、网站访问统计、任务队列、数据过期处理、应用排行榜、分布式集群架构中的session分离
+
+Redis安装和使用
+下载redis-4.0.10.tar.gz，并解压
+
+根目录：sudo make
+
+根目录：sudo make PREFIX=/usr/local/redis install
+
+sudo cp -f /usr/share/redis-4.0.10/redis.conf /usr/share/redis
+
+cd /usr/local/redis
+
+sudo nano redis.conf
+
+修改 deamonize no 为 deamonize yes
+
+./bin/redis-server ./redis.conf
+
+进入redis客户端 ./bin/redis-cli
+set name laowu
+get name
+keys *
+del name
+keys *
+
+Jedis入门
+redis官方首选的Java客户端开发包
+
+public class JedisTest {
+    @Test
+    public void testConnectRedis() {
+        /*本地连接，需要早redis.conf文件中bind 127.0.0.1取消注释*/
+        Jedis jedis = new Jedis("127.0.0.1", 6379);
+//        jedis.set("name", "Kate");
+        System.out.println(jedis.get("name"));
+        System.out.println(jedis.get("loginName"));
+        System.out.println(jedis.get("age"));
+        jedis.close();
+    }
+
+    @Test
+    public void testRedisPool() {
+        JedisPoolConfig config = new JedisPoolConfig();
+        config.setMaxTotal(30);
+        config.setMaxIdle(10);
+        JedisPool jedisPool = new JedisPool(config, "127.0.0.1", 6379);
+        Jedis jedis = null;
+        try {
+            jedis = jedisPool.getResource();
+            System.out.println(jedis.get("name"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (jedis != null)
+                jedis.close();
+            if (jedisPool != null)
+                jedisPool.close();
+        }
+    }
+}
+
+Redis数据类型
+主要使用字符串和hash
+
+键值对的key不能太长，也不能太短，有统一命名规范。
+
+存储String：
+二进制安全的，存入和获取的数据相同
+value最多容纳的数据长度是512M
+
+常用命令
+赋值：set key value
+取值：get key，getset key newValue
+删除：del key
+数值增减：incr key，decr key，incrby key 5，decrby key 4
+扩展命令：append key 5
+
+存储Hash：
+String Key 和 String Value的map容器
+每个hash能够存放很多键值对
+
+常用命令
+赋值：hset key filed value，hmset keyValueName filed1 value1 filed2 value2
+取值：hget key filed，hmget keyValueName filed1 filed2，hgetall
+删除：hdel key filed1, filed2
+数值增减：hincrby key filed
+扩展命令：hexists key，hkeys *
+
+存储List：
+ArrayList使用数组方式
+LinkedList使用双向链接方式
+双向链表中增加数据
+双向链表中删除数据
+
+常用命令
+两端添加：lpush key value...，rpush key value...
+查看列表：lrange key start end
+两端弹出：lpop key，rpop key
+获取列表元素个数：llen key
+扩展明令：
+
+Keys通用操作
+
+Redis特性
+
+Redis持久化
