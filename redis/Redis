@@ -118,10 +118,56 @@ LinkedList使用双向链接方式
 查看列表：lrange key start end
 两端弹出：lpop key，rpop key
 获取列表元素个数：llen key
-扩展明令：
+扩展明令：lpushx key，lrem key count value，linsert key before/after key value，rpoplpush key1 key2
+
+存储set：
+set集合中不可出现重复元素
+
+常用命令
+添加：sadd key value1 value2 value3 ...
+删除：srem key value
+查看集合：smembers key
+获得：sismember key value
+差集：sdiff key1 key2
+交集：sinter key1 key2
+并集：sunion key1 key2
+扩展命令：scard key，srandomember key，sdiffstore key key1 key2，sinterstore key key1 key2，sunionstore key key1 key2
+
+使用场景：跟踪一些唯一性数据，维护数据对象之间的关联关系
+
+存储Sorted-set：
+
+常用命令
+添加：zadd key score member
+查看：zscore key member，zcard key
+删除：zrem key member value，zremrange key start end withscores，zremrangebyscore key start end
+列表：zrange key start end，zrange key star end withscores，zrevrange key start end withscores
+计数：zcount key min max
+                                                    
+使用场景：微博排名和游戏排行榜
 
 Keys通用操作
 
+keys *
+keys pattern?
+rename key newkey
+expire key seconds
+ttl key
+type key
+
 Redis特性
 
+多数据库
+select index
+move key index
+
+Redis事务
+multi 开启事务
+exec 提交事务
+discard 回滚事务
+ 
 Redis持久化
+
+RDB方式
+
+AOF方式
